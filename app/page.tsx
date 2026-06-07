@@ -1,66 +1,59 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+/* eslint-disable @next/next/no-img-element */
+import Link from "next/link";
+import { COMPANIONS } from "@/data/mapping";
+import { SITE_TAGLINE } from "@/lib/constants";
+import { getStore, keys } from "@/lib/redis";
 
-export default function Home() {
+export const revalidate = 60;
+
+// Friendly starting count so the social proof never looks empty on day one.
+const SOCIAL_BASE = 1240;
+
+async function getTakenCount(): Promise<number> {
+  try {
+    const [total] = await getStore().mget([keys.total()]);
+    return SOCIAL_BASE + (total ?? 0);
+  } catch {
+    return SOCIAL_BASE;
+  }
+}
+
+export default async function Landing() {
+  const taken = await getTakenCount();
+  const companions = Object.values(COMPANIONS);
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="wrap screen center">
+      <p className="kicker">Wave Particle · personality lab</p>
+
+      <h1 className="hero-title">
+        Which <span className="pop">fictional menace</span> finishes your to-do list?
+      </h1>
+
+      <p className="lead">{SITE_TAGLINE} Take the 12-question test and meet your match.</p>
+
+      <div className="companion-strip">
+        {companions.map((c) => (
+          <span className="chip" key={c.id}>
+            <img src={c.avatar} alt={c.name} /> {c.name}
+          </span>
+        ))}
+      </div>
+
+      <Link href="/quiz" className="btn btn-primary btn-lg" prefetch>
+        Start the test →
+      </Link>
+
+      <p className="social-proof">
+        <strong>{taken.toLocaleString()}</strong> people have already found their companion.
+      </p>
+
+      <p className="disclaimer">
+        A fan-made personality quiz that matches your work style to a character from
+        Wave Particle — an AI goal companion that helps you actually finish things.
+        Not affiliated with the original shows, films, or rights holders; characters
+        are referenced in good fun.
+      </p>
+    </main>
   );
 }

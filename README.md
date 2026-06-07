@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Which Wave Particle Companion Are You?
 
-## Getting Started
+A standalone, meme-forward MBTI quiz that matches your **work style** to one of the
+8 [Wave Particle](https://waveparticle.onrender.com) AI companions — then funnels
+quiz-takers into trying the app.
 
-First, run the development server:
+> **This is a separate project.** It does not import from, modify, or depend on the
+> `Waveparticle-python` repo. The only link to the main product is the outbound
+> `APP_URL` constant. Companion avatars were copied (not linked) into `public/companions/`.
+
+## What it does
+
+- **12-question quiz** framed around how you finish tasks under a deadline → a pure
+  **MBTI** 4-letter type (E/I, S/N, T/F, J/P).
+- The 16 types map onto the **8 companions** (2 types each) — see `data/mapping.ts`.
+- **Shareable result pages** at `/result/<TYPE>` with a dynamic OG share image.
+- **"Hot Takes" polls** (incl. alternate-ending questions like *"should Villanelle
+  live on?"*) with live aggregate result bars — doubles as story-roadmap research.
+- **Anonymous aggregate analytics** (no emails, no PII) for "what most users prefer".
+
+## Tech
+
+Next.js (App Router) + TypeScript · Framer Motion · `next/og` share images ·
+Upstash Redis counters · Vercel Analytics.
+
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm test         # scoring + 16→8 mapping unit tests (vitest)
+npm run build    # production build (pre-renders all 16 result pages)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No env vars are required for local dev — counters fall back to an in-memory store.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.example` → `.env.local` and fill in for production:
 
-## Learn More
+| Var | Purpose |
+|---|---|
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Anonymous aggregate counters (free Upstash Redis). Without them, counters are in-memory and reset between invocations. |
+| `NEXT_PUBLIC_SITE_URL` | Public URL of this site, for share links / absolute OG URLs. |
+| `STATS_TOKEN` | Optional. If set, `/api/stats` requires `?token=` or an `x-stats-token` header. |
 
-To learn more about Next.js, take a look at the following resources:
+## Editing content (no code changes needed)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **`data/questions.ts`** — the 12 questions, options, weights, and meme copy.
+- **`data/mapping.ts`** — companion personas + the `MBTI_TO_COMPANION` 16→8 table + per-type flavor.
+- **`data/polls.ts`** — the Hot Takes polls (one per companion + universal ones).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Scoring lives in `lib/scoring.ts` and is fully unit-tested — editing content above
+never requires touching it.
 
-## Deploy on Vercel
+## API
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `POST /api/result` `{ type, companion }` → increments anonymous counters.
+- `POST /api/vote` `{ pollId, optionId }` · `GET /api/vote?pollId=` → poll tallies.
+- `GET /api/stats` → full distribution (the "what most users prefer" dashboard data).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploy
+
+Push to a Git repo and import into [Vercel](https://vercel.com). Add the env vars
+above. That's it — the OG images and serverless counter endpoints run on Vercel
+with no extra config.
+
+## A note on IP
+
+This is a fan-made, non-commercial-feeling parody quiz that references pop-culture
+characters by name. A public, viral site carries more trademark exposure than
+in-app use — consider original/stylized art or initials if you want to be
+conservative. Avatars are easy to swap in `public/companions/` + `data/mapping.ts`.
