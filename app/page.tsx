@@ -29,7 +29,7 @@ export default function Landing() {
       </Link>
 
       <p className="social-proof">
-        12 questions, no sign-up — just find your companion.
+        Your villain origin story starts with 12 questions.
       </p>
 
       <p className="disclaimer">
