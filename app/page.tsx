@@ -2,24 +2,8 @@
 import Link from "next/link";
 import { COMPANIONS } from "@/data/mapping";
 import { SITE_TAGLINE } from "@/lib/constants";
-import { getStore, keys } from "@/lib/redis";
 
-export const revalidate = 60;
-
-// Friendly starting count so the social proof never looks empty on day one.
-const SOCIAL_BASE = 1240;
-
-async function getTakenCount(): Promise<number> {
-  try {
-    const [total] = await getStore().mget([keys.total()]);
-    return SOCIAL_BASE + (total ?? 0);
-  } catch {
-    return SOCIAL_BASE;
-  }
-}
-
-export default async function Landing() {
-  const taken = await getTakenCount();
+export default function Landing() {
   const companions = Object.values(COMPANIONS);
 
   return (
@@ -45,7 +29,7 @@ export default async function Landing() {
       </Link>
 
       <p className="social-proof">
-        <strong>{taken.toLocaleString()}</strong> people have already found their companion.
+        12 questions, no sign-up — just find your companion.
       </p>
 
       <p className="disclaimer">
