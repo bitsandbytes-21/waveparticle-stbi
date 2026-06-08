@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ALL_TYPES, COMPANIONS } from "@/data/mapping";
+import { COMPANIONS, CLUSTERS, INTERACTION_MODES } from "@/data/mapping";
 import { ALL_POLLS } from "@/data/polls";
 import { getStore, keys } from "@/lib/redis";
 
@@ -20,10 +20,13 @@ export async function GET(req: Request) {
 
   const store = getStore();
   const companionIds = Object.keys(COMPANIONS);
+  const clusterIds = Object.keys(CLUSTERS);
+  const modeIds = Object.keys(INTERACTION_MODES);
 
-  const [typeCounts, companionCounts, totalArr] = await Promise.all([
-    store.mget(ALL_TYPES.map((t) => keys.type(t))),
+  const [clusterCounts, companionCounts, modeCounts, totalArr] = await Promise.all([
+    store.mget(clusterIds.map((c) => keys.cluster(c))),
     store.mget(companionIds.map((c) => keys.companion(c))),
+    store.mget(modeIds.map((m) => keys.mode(m))),
     store.mget([keys.total()]),
   ]);
 
@@ -35,10 +38,9 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     total: totalArr[0] ?? 0,
-    byType: Object.fromEntries(ALL_TYPES.map((t, i) => [t, typeCounts[i]])),
-    byCompanion: Object.fromEntries(
-      companionIds.map((c, i) => [c, companionCounts[i]]),
-    ),
+    byCluster: Object.fromEntries(clusterIds.map((c, i) => [c, clusterCounts[i]])),
+    byCompanion: Object.fromEntries(companionIds.map((c, i) => [c, companionCounts[i]])),
+    byMode: Object.fromEntries(modeIds.map((m, i) => [m, modeCounts[i]])),
     polls,
   });
 }

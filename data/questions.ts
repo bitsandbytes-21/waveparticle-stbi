@@ -1,149 +1,175 @@
-import type { Axis } from "./mapping";
+import type { AxisId, Pole } from "./mapping";
 
-// Each option pushes one MBTI letter. 3 questions per axis, all weight 1, so a
-// single axis can never tie (odd count) and results are fully reproducible.
-export type Letter = "E" | "I" | "S" | "N" | "T" | "F" | "J" | "P";
+// Each option carries one or more "effects" — a vote for a pole on an axis. A
+// single option can feed multiple axes (e.g. Q4 informs both EX and TM), and ER
+// questions offer three choices. Scoring tallies these votes; see lib/scoring.ts.
+export interface OptionEffect {
+  axis: AxisId;
+  pole: Pole;
+}
 
 export interface QuizOption {
   emoji: string;
   label: string;
-  letter: Letter;
+  effects: OptionEffect[];
 }
 
 export interface QuizQuestion {
   id: string;
-  axis: Axis;
   prompt: string;
   meme: string; // small meme-y aside under the prompt
   options: QuizOption[];
 }
 
+// Shorthand helpers for readable effect lists.
+const e = (axis: AxisId, pole: Pole): OptionEffect => ({ axis, pole });
+
 export const QUESTIONS: QuizQuestion[] = [
-  // ---- E / I : do you body-double, or lock in solo? ----
+  // ---- SE · Social Energy : presence vs solitude --------------------------
   {
     id: "q1",
-    axis: "EI",
     prompt: "It's crunch time. What's the move?",
     meme: "deadline incoming, sirens blaring 🚨",
     options: [
-      { emoji: "📣", label: "Open a call, narrate my whole plan out loud, feed off the energy", letter: "E" },
-      { emoji: "🚪", label: "Phone face-down, door shut, become completely unreachable", letter: "I" },
+      { emoji: "📣", label: "Open a call, narrate my whole plan out loud, feed off the energy", effects: [e("SE", "presence")] },
+      { emoji: "🚪", label: "Phone face-down, door shut, become completely unreachable", effects: [e("SE", "solitude")] },
     ],
   },
   {
     id: "q2",
-    axis: "EI",
     prompt: "You hit a wall mid-task. You…",
     meme: "the brain has left the chat",
     options: [
-      { emoji: "🦆", label: "Rubber-duck it out loud / spam the group chat instantly", letter: "E" },
-      { emoji: "🧠", label: "Go quiet and grind it out inside my own head first", letter: "I" },
+      { emoji: "🦆", label: "Rubber-duck it out loud / spam the group chat instantly", effects: [e("SE", "presence")] },
+      { emoji: "🧠", label: "Go quiet and grind it out inside my own head first", effects: [e("SE", "solitude")] },
     ],
   },
   {
     id: "q3",
-    axis: "EI",
     prompt: "Your real focus environment is…",
-    meme: "be honest",
+    meme: "no notes, just vibes",
     options: [
-      { emoji: "☕", label: "Loud café / coworking buzz — silence is genuinely creepy", letter: "E" },
-      { emoji: "🎧", label: "Noise-cancelling everything. Just me and the void.", letter: "I" },
+      { emoji: "☕", label: "Loud café / coworking buzz — silence is genuinely creepy", effects: [e("SE", "presence")] },
+      { emoji: "🎧", label: "Noise-cancelling everything. Just me and the void.", effects: [e("SE", "solitude")] },
     ],
   },
 
-  // ---- S / N : concrete checklist, or big-picture vision? ----
+  // ---- EX + TM · Execution Style & Thinking Mode --------------------------
   {
     id: "q4",
-    axis: "SN",
     prompt: "Handed a vague project, you FIRST…",
     meme: '"make it good" — cool, thanks',
     options: [
-      { emoji: "📋", label: "Write the literal, boring, beautiful step-by-step checklist", letter: "S" },
-      { emoji: "🌌", label: "Sketch the big vision and the vibe — details are future-me's problem", letter: "N" },
+      { emoji: "📋", label: "Write the literal, boring, beautiful step-by-step checklist", effects: [e("EX", "checklist"), e("TM", "structured")] },
+      { emoji: "🌌", label: "Sketch the big vision and the vibe — details are future-me's problem", effects: [e("EX", "flow"), e("TM", "intuitive")] },
     ],
   },
   {
     id: "q5",
-    axis: "SN",
     prompt: "When in doubt, you trust…",
     meme: "gut vs receipts",
     options: [
-      { emoji: "📖", label: "What worked last time. Proven recipe, follow it.", letter: "S" },
-      { emoji: "🔮", label: "A hunch about where this could actually go", letter: "N" },
+      { emoji: "📖", label: "What worked last time. Proven recipe, follow it.", effects: [e("TM", "structured")] },
+      { emoji: "🔮", label: "A hunch about where this could actually go", effects: [e("TM", "intuitive")] },
     ],
   },
   {
     id: "q6",
-    axis: "SN",
     prompt: "The brief says 'be creative.' You…",
     meme: "dangerous words",
     options: [
-      { emoji: "🧱", label: "Need one concrete example to anchor on. Show me.", letter: "S" },
-      { emoji: "🪁", label: "Am already five wild tangents deep into possibilities", letter: "N" },
+      { emoji: "🧱", label: "Need one concrete example to anchor on. Show me.", effects: [e("TM", "structured")] },
+      { emoji: "🪁", label: "Am already five wild tangents deep into possibilities", effects: [e("TM", "intuitive")] },
     ],
   },
 
-  // ---- T / F : logic & efficiency, or mood & meaning? ----
+  // ---- ER · Emotional Regulation : self / accountability / supported (3-way)
   {
     id: "q7",
-    axis: "TF",
-    prompt: "You pick what to do next based on…",
-    meme: "the eternal struggle",
+    prompt: "What actually keeps you moving on a hard task?",
+    meme: "the real fuel, be honest-ish",
     options: [
-      { emoji: "📈", label: "Cold ROI — whatever's the most efficient move", letter: "T" },
-      { emoji: "❤️‍🔥", label: "Whatever I actually have the heart for right now", letter: "F" },
+      { emoji: "🚀", label: "Nothing fancy — I lock in and drive myself", effects: [e("ER", "self")] },
+      { emoji: "👮", label: "Knowing someone's checking. Don't make me look bad.", effects: [e("ER", "accountability")] },
+      { emoji: "🫶", label: "Someone in my corner going 'you've got this'", effects: [e("ER", "supported")] },
     ],
   },
   {
     id: "q8",
-    axis: "TF",
-    prompt: "A plan is technically correct but feels… off. You…",
-    meme: "vibes are data, actually",
+    prompt: "Motivation has fully left the building. What brings it back?",
+    meme: "tank on empty",
     options: [
-      { emoji: "🤖", label: "Technically right wins. Ship it.", letter: "T" },
-      { emoji: "🫶", label: "If it doesn't sit right with people, it's wrong", letter: "F" },
+      { emoji: "🧗", label: "I white-knuckle it solo. My problem to solve.", effects: [e("ER", "self")] },
+      { emoji: "⏰", label: "A hard deadline and people waiting on me", effects: [e("ER", "accountability")] },
+      { emoji: "☕", label: "A pep talk and a little company", effects: [e("ER", "supported")] },
     ],
   },
   {
     id: "q9",
-    axis: "TF",
-    prompt: "The reward that hits hardest when you finish…",
+    prompt: "The finish-line feeling you secretly chase…",
     meme: "dopamine source check",
     options: [
-      { emoji: "✅", label: "The metric going up. Clean, measurable, undeniable win.", letter: "T" },
-      { emoji: "🌟", label: "Knowing it mattered / someone's genuinely glad I did it", letter: "F" },
+      { emoji: "🏁", label: "Quiet private satisfaction. I know what I did.", effects: [e("ER", "self")] },
+      { emoji: "📊", label: "Reporting it DONE to someone who held me to it", effects: [e("ER", "accountability")] },
+      { emoji: "🌟", label: "Someone genuinely glad I pulled it off", effects: [e("ER", "supported")] },
     ],
   },
 
-  // ---- J / P : plan-the-plan, or improvise and sprint? ----
+  // ---- EX + ER · how you respond to structure / deadlines -----------------
   {
     id: "q10",
-    axis: "JP",
     prompt: "Deadline is Friday. Realistically you finish…",
     meme: "no judgment (some judgment)",
     options: [
-      { emoji: "🗓️", label: "Comfortably Wednesday. Planned it Monday, obviously.", letter: "J" },
-      { emoji: "🔥", label: "11:58pm Friday. Gloriously. On pure adrenaline.", letter: "P" },
+      { emoji: "🗓️", label: "Comfortably Wednesday. Planned it Monday, obviously.", effects: [e("EX", "checklist"), e("ER", "accountability")] },
+      { emoji: "🔥", label: "11:58pm Friday. Gloriously. On pure adrenaline.", effects: [e("EX", "flow"), e("ER", "self")] },
     ],
   },
   {
     id: "q11",
-    axis: "JP",
     prompt: "Your to-do list is…",
-    meme: "describe it in one word: chaos? or cathedral?",
+    meme: "one word: chaos? or cathedral?",
     options: [
-      { emoji: "🛐", label: "Sacred. Sorted, dated, checked off with deep joy.", letter: "J" },
-      { emoji: "🌀", label: "A vague suggestion I keep rewriting and ignoring", letter: "P" },
+      { emoji: "🛐", label: "Sacred. Sorted, dated, checked off with deep joy.", effects: [e("EX", "checklist"), e("ER", "accountability")] },
+      { emoji: "🌀", label: "A vague suggestion I keep rewriting and ignoring", effects: [e("EX", "flow"), e("ER", "self")] },
     ],
   },
   {
     id: "q12",
-    axis: "JP",
     prompt: "Plans change last-minute. You feel…",
-    meme: "the true personality test",
+    meme: "the true vibe check",
     options: [
-      { emoji: "😤", label: "Personally attacked. I had a SYSTEM.", letter: "J" },
-      { emoji: "🕊️", label: "Free, honestly. Improvising is when I'm actually good.", letter: "P" },
+      { emoji: "😤", label: "Personally attacked. I had a SYSTEM.", effects: [e("EX", "checklist"), e("ER", "accountability")] },
+      { emoji: "🕊️", label: "Free, honestly. Improvising is when I'm actually good.", effects: [e("EX", "flow"), e("ER", "self")] },
+    ],
+  },
+
+  // ---- SI · Story Immersion : narrative vs ignore (the moat) --------------
+  {
+    id: "q13",
+    prompt: "When you're working, your companion should feel like…",
+    meme: "tool or teammate?",
+    options: [
+      { emoji: "🔧", label: "A tool that helps me finish tasks, efficiently", effects: [e("SI", "ignore")] },
+      { emoji: "🎭", label: "A character I actually build a bond with over time", effects: [e("SI", "narrative"), e("ER", "supported")] },
+    ],
+  },
+  {
+    id: "q14",
+    prompt: "You're stuck. You want your companion to…",
+    meme: "drive, or co-pilot?",
+    options: [
+      { emoji: "🧭", label: "Give me the direct next step and structure my move", effects: [e("ER", "accountability"), e("EX", "checklist")] },
+      { emoji: "🗣️", label: "Talk it through with me and evolve the plan together", effects: [e("ER", "supported"), e("EX", "flow")] },
+    ],
+  },
+  {
+    id: "q15",
+    prompt: "You finish a task. You want your companion to…",
+    meme: "the one that actually matters ⭐",
+    options: [
+      { emoji: "✔️", label: "Just confirm it's done and move to the next thing", effects: [e("SI", "ignore")] },
+      { emoji: "🌍", label: "Update the story world based on what I just did", effects: [e("SI", "narrative")] },
     ],
   },
 ];

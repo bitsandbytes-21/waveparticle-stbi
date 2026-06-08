@@ -26,16 +26,25 @@ function PollCard({ poll }: { poll: Poll }) {
   const storageKey = `wp-vote-${poll.id}`;
 
   useEffect(() => {
+    // Read prior vote synchronously (no setState here — that would trip the
+    // set-state-in-effect rule and risk an SSR hydration mismatch); apply it
+    // inside the async callbacks alongside the fetched tallies.
+    let prior: string | null = null;
     try {
-      const prior = window.localStorage.getItem(storageKey);
-      if (prior) setVoted(prior);
+      prior = window.localStorage.getItem(storageKey);
     } catch {
       /* storage blocked */
     }
     fetch(`/api/vote?pollId=${encodeURIComponent(poll.id)}`)
       .then((r) => r.json())
-      .then((d) => setTallies(d.tallies ?? {}))
-      .catch(() => setTallies({}));
+      .then((d) => {
+        setTallies(d.tallies ?? {});
+        if (prior) setVoted(prior);
+      })
+      .catch(() => {
+        setTallies({});
+        if (prior) setVoted(prior);
+      });
   }, [poll.id, storageKey]);
 
   async function vote(optionId: string) {

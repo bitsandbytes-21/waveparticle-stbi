@@ -467,6 +467,201 @@ a {
   opacity: 0.85;
 }
 
+/* ---- product-axis result details ---- */
+.cluster-emoji {
+  font-size: 2.6rem;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.details {
+  margin-top: 24px;
+}
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  margin-bottom: 22px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.badge-note {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.axis5-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.axis5-name {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+}
+.axis5-row {
+  display: grid;
+  grid-template-columns: minmax(58px, auto) 1fr minmax(58px, auto);
+  align-items: center;
+  gap: 10px;
+}
+.axis5-pole {
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+}
+.axis5-pole.right {
+  text-align: right;
+}
+.axis5-pole.win {
+  color: var(--accent);
+  font-weight: 700;
+}
+.axis5-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.axis5-track::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--border-strong);
+}
+.axis5-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #160d08;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.er-states {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.er-state {
+  text-align: center;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+.er-state.win {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.setup-card {
+  margin-top: 22px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.setup-card .tag {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.setup-card p {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+}
+
+.override {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+.override-head {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  margin-bottom: 14px;
+}
+.override-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.override-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  text-align: center;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.override-chip img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+}
+.override-chip:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.override-chip.current {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--ink);
+}
+
+@media (max-width: 480px) {
+  .override-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .er-states {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* share + cta */
 .share-row {
   display: flex;

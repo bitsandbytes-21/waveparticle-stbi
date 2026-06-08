@@ -1,41 +1,37 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ALL_TYPES,
-  TYPE_META,
-  companionForType,
-  isMbtiType,
+  ALL_COMPANIONS,
+  COMPANIONS,
+  clusterForCompanion,
+  isCompanionId,
 } from "@/data/mapping";
 import { pollsForCompanion } from "@/data/polls";
-import { APP_URL } from "@/lib/constants";
+import { appUrlFor } from "@/lib/constants";
+import { deriveMode, profileToVector } from "@/lib/scoring";
 import ShareButtons from "@/components/ShareButtons";
 import HotTakePoll from "@/components/HotTakePoll";
+import ResultDetails from "@/components/ResultDetails";
 
-// Pre-render all 16 result pages as static HTML — perfect for share crawlers.
+// Pre-render all 8 companion result pages as static HTML — perfect for share crawlers.
 export function generateStaticParams() {
-  return ALL_TYPES.map((type) => ({ type }));
+  return ALL_COMPANIONS.map((companion) => ({ companion }));
 }
 
-const AXIS_DECODE = [
-  { left: "E", right: "I" },
-  { left: "S", right: "N" },
-  { left: "T", right: "F" },
-  { left: "J", right: "P" },
-] as const;
-
-type Params = { params: Promise<{ type: string }> };
+type Params = { params: Promise<{ companion: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { type: raw } = await params;
-  const type = raw.toUpperCase();
-  if (!isMbtiType(type)) return { title: "Unknown type" };
-  const companion = companionForType(type);
-  const meta = TYPE_META[type];
-  const title = `${type} — ${companion.name}`;
-  const description = `I'm ${type} (${meta.nickname}). My Wave Particle work companion is ${companion.name}: "${companion.quote}" Which fictional menace finishes YOUR to-do list?`;
+  const { companion: raw } = await params;
+  const id = raw.toLowerCase();
+  if (!isCompanionId(id)) return { title: "Unknown companion" };
+  const companion = COMPANIONS[id];
+  const cluster = clusterForCompanion(id);
+  const title = `${companion.name} — ${cluster.name}`;
+  const description = `I'm ${cluster.name} ${cluster.emoji}. My Wave Particle work companion is ${companion.name}: "${companion.quote}" Which fictional menace finishes YOUR to-do list?`;
   return {
     title,
     description,
@@ -45,25 +41,30 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function ResultPage({ params }: Params) {
-  const { type: raw } = await params;
-  const type = raw.toUpperCase();
-  if (!isMbtiType(type)) notFound();
+  const { companion: raw } = await params;
+  const id = raw.toLowerCase();
+  if (!isCompanionId(id)) notFound();
 
-  const companion = companionForType(type);
-  const meta = TYPE_META[type];
-  const polls = pollsForCompanion(companion.id);
+  const companion = COMPANIONS[id];
+  const cluster = clusterForCompanion(id);
+  const polls = pollsForCompanion(id);
   const accentStyle = { "--accent": companion.accent } as CSSProperties;
 
-  const shareText = `I'm ${type} — my Wave Particle work companion is ${companion.name} ${companion.emoji}. Which fictional menace finishes YOUR to-do list?`;
+  // Companion-canonical mode for the always-static CTA (a taker's exact mode also
+  // shows in ResultDetails). Drives the personalized, attributable app handoff.
+  const mode = deriveMode(profileToVector(companion.profile));
+  const ctaUrl = appUrlFor({ companion: id, cluster: companion.cluster, mode: mode.id });
+
+  const shareText = `I'm ${cluster.name} ${cluster.emoji} — matched with ${companion.name} ${companion.emoji} in Wave Particle. Which fictional menace finishes YOUR to-do list?`;
 
   return (
     <main className="wrap" style={accentStyle}>
       <article className="result-card">
-        <p className="kicker center">your work-style type</p>
+        <p className="kicker center">your work-style archetype</p>
         <div className="center">
-          <span className="type-code">{type.split("").join(" ")}</span>
-          <h1 className="type-nick">{meta.nickname}</h1>
-          <p className="type-blurb">{meta.blurb}</p>
+          <div className="cluster-emoji">{cluster.emoji}</div>
+          <h1 className="type-nick">{cluster.name}</h1>
+          <p className="type-blurb">{cluster.blurb}</p>
         </div>
 
         <p className="match-label center">— your companion is —</p>
@@ -95,24 +96,9 @@ export default async function ResultPage({ params }: Params) {
           </div>
         </div>
 
-        <div className="axes">
-          {AXIS_DECODE.map((ax, i) => {
-            const winner = type[i];
-            const leftWins = winner === ax.left;
-            return (
-              <div className="axis" key={ax.left + ax.right}>
-                <span className={`pole ${leftWins ? "win" : ""}`}>{ax.left}</span>
-                <div className="axis-track">
-                  <div
-                    className="axis-fill"
-                    style={{ left: leftWins ? 0 : "50%", width: "50%" }}
-                  />
-                </div>
-                <span className={`pole ${!leftWins ? "win" : ""}`}>{ax.right}</span>
-              </div>
-            );
-          })}
-        </div>
+        <Suspense fallback={<div className="spin" />}>
+          <ResultDetails companionId={id} />
+        </Suspense>
 
         <ShareButtons text={shareText} />
       </article>
@@ -121,15 +107,16 @@ export default async function ResultPage({ params }: Params) {
         <h3>Now go finish something with {companion.name}.</h3>
         <p>
           {companion.name} is a real companion inside Wave Particle — set a goal,
-          get a timed plan, and let them push you to the finish line.
+          get a timed plan, and let them push you to the finish line. They&apos;ll
+          run <strong>{mode.name.toLowerCase()}</strong> mode for the way you work.
         </p>
         <a
           className="btn btn-primary btn-lg btn-block"
-          href={APP_URL}
+          href={ctaUrl}
           target="_blank"
           rel="noopener noreferrer"
         >
-          Try Wave Particle →
+          Start with {companion.name} →
         </a>
       </section>
 

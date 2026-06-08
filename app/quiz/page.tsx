@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { QUESTIONS, TOTAL_QUESTIONS, type Letter } from "@/data/questions";
-import { scoreToType, type Answers } from "@/lib/scoring";
-import { companionForType } from "@/data/mapping";
+import { QUESTIONS, TOTAL_QUESTIONS } from "@/data/questions";
+import { score, encodeVector, type Answers } from "@/lib/scoring";
 
 export default function QuizPage() {
   const router = useRouter();
@@ -16,8 +15,8 @@ export default function QuizPage() {
   const q = QUESTIONS[index];
   const progress = Math.round((index / TOTAL_QUESTIONS) * 100);
 
-  function choose(letter: Letter) {
-    const next: Answers = { ...answers, [q.id]: letter };
+  function choose(optionIndex: number) {
+    const next: Answers = { ...answers, [q.id]: optionIndex };
     setAnswers(next);
     if (index < TOTAL_QUESTIONS - 1) {
       setIndex(index + 1);
@@ -28,20 +27,20 @@ export default function QuizPage() {
 
   async function finish(final: Answers) {
     setSubmitting(true);
-    const type = scoreToType(final);
-    const companion = companionForType(type);
+    const { companion, cluster, mode, vector } = score(final);
     // Fire-and-forget aggregate counter — never block the reveal on it.
     try {
       await fetch("/api/result", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type, companion: companion.id }),
+        body: JSON.stringify({ companion: companion.id, cluster: cluster.id, mode: mode.id }),
         keepalive: true,
       });
     } catch {
       /* analytics is best-effort */
     }
-    router.push(`/result/${type}`);
+    const params = new URLSearchParams(encodeVector(vector));
+    router.push(`/result/${companion.id}?${params.toString()}`);
   }
 
   if (submitting) {
@@ -75,11 +74,11 @@ export default function QuizPage() {
           <p className="q-meme">{q.meme}</p>
           <h2 className="q-prompt">{q.prompt}</h2>
           <div className="options">
-            {q.options.map((opt) => (
+            {q.options.map((opt, i) => (
               <button
-                key={opt.letter}
+                key={i}
                 className="option"
-                onClick={() => choose(opt.letter)}
+                onClick={() => choose(i)}
               >
                 <span className="option-emoji">{opt.emoji}</span>
                 <span>{opt.label}</span>

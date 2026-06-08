@@ -14,7 +14,7 @@ export default function Landing() {
         Which <span className="pop">fictional menace</span> finishes your to-do list?
       </h1>
 
-      <p className="lead">{SITE_TAGLINE} Take the 12-question test and meet your match.</p>
+      <p className="lead">{SITE_TAGLINE} Take the 15-question test and meet your match.</p>
 
       <div className="companion-strip">
         {companions.map((c) => (
@@ -29,7 +29,7 @@ export default function Landing() {
       </Link>
 
       <p className="social-proof">
-        Your villain origin story starts with 12 questions.
+        Your villain origin story starts with 15 questions.
       </p>
 
       <p className="disclaimer">

@@ -1,21 +1,31 @@
 import { ImageResponse } from "next/og";
-import { TYPE_META, companionForType, isMbtiType } from "@/data/mapping";
+import {
+  ALL_COMPANIONS,
+  COMPANIONS,
+  clusterForCompanion,
+  isCompanionId,
+} from "@/data/mapping";
 
 export const runtime = "nodejs";
 export const alt = "Your Wave Particle companion result";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+// Prerender all 8 share cards at build time so social crawlers get them instantly.
+export function generateStaticParams() {
+  return ALL_COMPANIONS.map((companion) => ({ companion }));
+}
+
 export default async function Image({
   params,
 }: {
-  params: Promise<{ type: string }>;
+  params: Promise<{ companion: string }>;
 }) {
-  const { type: raw } = await params;
-  const type = raw.toUpperCase();
-  const valid = isMbtiType(type);
-  const companion = valid ? companionForType(type) : null;
-  const meta = valid ? TYPE_META[type] : null;
+  const { companion: raw } = await params;
+  const id = raw.toLowerCase();
+  const valid = isCompanionId(id);
+  const companion = valid ? COMPANIONS[id] : null;
+  const cluster = valid ? clusterForCompanion(id) : null;
   const accent = companion?.accent ?? "#ff735a";
   const name = companion?.name ?? "Wave Particle";
   const origin = companion?.origin ?? "AI goal companion";
@@ -42,11 +52,8 @@ export default async function Image({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", fontSize: 56, letterSpacing: 24, color: accent, fontWeight: 800 }}>
-            {type.split("").join(" ")}
-          </div>
-          <div style={{ display: "flex", fontSize: 34, color: "#f6eee1aa", marginTop: 4 }}>
-            {meta?.nickname ?? ""}
+          <div style={{ display: "flex", fontSize: 40, color: accent, fontWeight: 800 }}>
+            {cluster ? `${cluster.emoji} ${cluster.name}` : ""}
           </div>
           <div
             style={{
@@ -55,7 +62,7 @@ export default async function Image({
               fontWeight: 900,
               lineHeight: 1,
               textTransform: "uppercase",
-              marginTop: 18,
+              marginTop: 12,
             }}
           >
             {name}
@@ -78,7 +85,7 @@ export default async function Image({
 
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 26, color: "#f6eee188" }}>
           <div style={{ display: "flex" }}>Find your AI work companion →</div>
-          <div style={{ display: "flex", fontWeight: 700 }}>waveparticle.onrender.com</div>
+          <div style={{ display: "flex", fontWeight: 700 }}>waveparticle.app</div>
         </div>
       </div>
     ),

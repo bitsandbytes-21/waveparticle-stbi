@@ -1,8 +1,8 @@
 # Which Wave Particle Companion Are You?
 
-A standalone, meme-forward MBTI quiz that matches your **work style** to one of the
-8 [Wave Particle](https://waveparticle.onrender.com) AI companions — then funnels
-quiz-takers into trying the app.
+A standalone, meme-forward quiz that scores you on 5 product axes and matches your
+**work style** to one of the 8 [Wave Particle](https://waveparticle.app) AI
+companions — then funnels quiz-takers into trying the app.
 
 > **This is a separate project.** It does not import from, modify, or depend on the
 > `Waveparticle-python` repo. The only link to the main product is the outbound

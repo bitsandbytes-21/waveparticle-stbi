@@ -1,20 +1,164 @@
 // ---------------------------------------------------------------------------
-// The 16 -> 8 core: MBTI type -> Wave Particle companion, plus all the persona
-// copy the result card needs. Tunable by design — edit COMPANIONS / TYPE_META /
-// MBTI_TO_COMPANION here without touching the scoring or UI logic.
+// The product-axis core: 5 axes -> nearest-profile companion match -> archetype
+// cluster (the companion's own label) -> interaction mode. All tunable by design —
+// edit COMPANIONS / CLUSTERS / INTERACTION_MODES / the per-companion `profile` here
+// without touching the scoring or UI logic.
 // ---------------------------------------------------------------------------
 
-export type Axis = "EI" | "SN" | "TF" | "JP";
+// ---- The 5 product axes (replacing the 4 MBTI axes) -----------------------
+// Four axes are binary (a value in [-1, +1], + = the "pos" pole). ER is 3-way.
+export type AxisId = "SE" | "EX" | "TM" | "ER" | "SI";
+export type BinaryAxisId = "SE" | "EX" | "TM" | "SI";
 
-export type MbtiType =
-  | "INTJ" | "INTP" | "ENTJ" | "ENTP"
-  | "INFJ" | "INFP" | "ENFJ" | "ENFP"
-  | "ISTJ" | "ISFJ" | "ESTJ" | "ESFJ"
-  | "ISTP" | "ISFP" | "ESTP" | "ESFP";
+// The 3 states of Emotional Regulation. Order is the deterministic tiebreak order.
+export type ErState = "self" | "accountability" | "supported";
+export const ER_STATES: ErState[] = ["self", "accountability", "supported"];
 
+export type Pole =
+  | "presence" | "solitude" // SE — Social Energy
+  | "checklist" | "flow" // EX — Execution Style
+  | "structured" | "intuitive" // TM — Thinking Mode
+  | ErState // ER — Emotional Regulation (3-way)
+  | "narrative" | "ignore"; // SI — Story Immersion (the moat)
+
+export const BINARY_AXES: BinaryAxisId[] = ["SE", "EX", "TM", "SI"];
+
+// For each binary axis: which pole is the +1 ("pos") end, plus short display labels.
+export const AXIS_POLES: Record<
+  BinaryAxisId,
+  { pos: Pole; neg: Pole; posLabel: string; negLabel: string }
+> = {
+  SE: { pos: "presence", neg: "solitude", posLabel: "Presence", negLabel: "Solitude" },
+  EX: { pos: "checklist", neg: "flow", posLabel: "Checklist", negLabel: "Flow" },
+  TM: { pos: "structured", neg: "intuitive", posLabel: "Structured", negLabel: "Intuitive" },
+  SI: { pos: "narrative", neg: "ignore", posLabel: "Story", negLabel: "Just the task" },
+};
+
+export interface AxisMeta {
+  id: AxisId;
+  name: string;
+  blurb: string;
+}
+
+export const AXIS_META: Record<AxisId, AxisMeta> = {
+  SE: { id: "SE", name: "Social Energy", blurb: "Do you need presence or solitude to function?" },
+  EX: { id: "EX", name: "Execution Style", blurb: "Checklist-driven or flow-driven?" },
+  TM: { id: "TM", name: "Thinking Mode", blurb: "Structured logic or intuitive exploration?" },
+  ER: { id: "ER", name: "Emotional Regulation", blurb: "What keeps you moving when it's hard?" },
+  SI: { id: "SI", name: "Story Immersion", blurb: "Do you engage with the narrative, or ignore it?" },
+};
+
+export const ER_LABEL: Record<ErState, string> = {
+  self: "Self-driven",
+  accountability: "Accountability-driven",
+  supported: "Emotionally supported",
+};
+
+// How each ER style should shape the companion's nudging — turns the axis into a
+// concrete product recommendation on the result page (conversion copy).
+export const ER_SUPPORT: Record<ErState, string> = {
+  self: "set your own pace — your companion stays out of the way until you call it in.",
+  accountability: "lean on deadlines and check-ins — let your companion hold the line.",
+  supported: "let your companion talk it through and hype you up when momentum dips.",
+};
+
+// ---- Archetype clusters (a labeling layer over the 8 companions) ----------
+export type ClusterId =
+  | "strategist"
+  | "narrative-driver"
+  | "chaos-partner"
+  | "soft-accountability"
+  | "high-pressure";
+
+export interface ClusterMeta {
+  id: ClusterId;
+  name: string;
+  emoji: string;
+  blurb: string;
+}
+
+export const CLUSTERS: Record<ClusterId, ClusterMeta> = {
+  strategist: {
+    id: "strategist",
+    name: "The Strategist",
+    emoji: "🧭",
+    blurb: "You build the whole plan before you move. Order in, chaos out.",
+  },
+  "narrative-driver": {
+    id: "narrative-driver",
+    name: "The Narrative Driver",
+    emoji: "📖",
+    blurb: "You finish what means something. Story is your fuel.",
+  },
+  "chaos-partner": {
+    id: "chaos-partner",
+    name: "The Chaos Partner",
+    emoji: "🎲",
+    blurb: "You run on improvisation and stakes. Make it a game, then win it.",
+  },
+  "soft-accountability": {
+    id: "soft-accountability",
+    name: "Soft Accountability",
+    emoji: "🫂",
+    blurb: "You go furthest when someone's calmly in your corner.",
+  },
+  "high-pressure": {
+    id: "high-pressure",
+    name: "The High-Pressure Performer",
+    emoji: "🔥",
+    blurb: "Standards, stakes, zero excuses — the pressure is the point.",
+  },
+};
+
+// ---- Interaction mode (how story-heavy the companion experience should be) -
+export type ModeId = "story-heavy" | "task-heavy" | "hybrid";
+
+export interface ModeMeta {
+  id: ModeId;
+  name: string;
+  emoji: string;
+  blurb: string;
+  setup: string; // how to run Wave Particle in this mode (conversion copy)
+}
+
+export const INTERACTION_MODES: Record<ModeId, ModeMeta> = {
+  "story-heavy": {
+    id: "story-heavy",
+    name: "Story-heavy",
+    emoji: "🎭",
+    blurb: "The world evolves with every task you finish.",
+    setup: "Turn on the living story so your companion's world grows every time you finish something.",
+  },
+  "task-heavy": {
+    id: "task-heavy",
+    name: "Task-heavy",
+    emoji: "✅",
+    blurb: "Less lore, more done. Confirm and move on.",
+    setup: "Keep it lean — crisp plans, fast check-offs, minimal lore between you and done.",
+  },
+  hybrid: {
+    id: "hybrid",
+    name: "Hybrid",
+    emoji: "⚖️",
+    blurb: "A little story, a lot of finishing.",
+    setup: "Run a light story thread over a focused task flow — momentum first, flavor second.",
+  },
+};
+
+// ---- Companions ------------------------------------------------------------
 export type CompanionId =
   | "heisenberg" | "oppenheimer" | "moriarty" | "villanelle"
   | "snape" | "olivia" | "zhenhuan" | "iggy";
+
+// A companion's target position on each axis. Used for nearest-profile matching.
+// Each profile is unique, so every companion is reachable from the quiz.
+export interface CompanionProfile {
+  SE: "presence" | "solitude";
+  EX: "checklist" | "flow";
+  TM: "structured" | "intuitive";
+  SI: "narrative" | "ignore";
+  ER: ErState;
+}
 
 export interface Companion {
   id: CompanionId;
@@ -29,6 +173,8 @@ export interface Companion {
   workStyle: string; // HOW they get you to finish under a deadline
   greenFlag: string; // why working with them rules
   redFlag: string; // the (funny) catch
+  cluster: ClusterId; // archetype label shown on the result
+  profile: CompanionProfile; // 5-axis target for matching
 }
 
 export const COMPANIONS: Record<CompanionId, Companion> = {
@@ -46,6 +192,8 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       "Breaks the chaos into exact steps, applies relentless pressure, and refuses to let one loose variable ruin the batch. No improvising — purity, yield, control.",
     greenFlag: "Will not let you half-finish anything. Ever.",
     redFlag: "Mildly terrifying about your color-coded spreadsheet.",
+    cluster: "strategist",
+    profile: { SE: "solitude", EX: "checklist", TM: "structured", ER: "self", SI: "ignore" },
   },
   oppenheimer: {
     id: "oppenheimer",
@@ -61,6 +209,8 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       "Zooms out to the meaning of the thing, then channels existential dread into focus. Big-picture first, then a sudden, total commitment to the deliverable.",
     greenFlag: "Makes a boring task feel world-historically important.",
     redFlag: "May spiral about the ethics of your inbox.",
+    cluster: "narrative-driver",
+    profile: { SE: "solitude", EX: "flow", TM: "intuitive", ER: "supported", SI: "narrative" },
   },
   moriarty: {
     id: "moriarty",
@@ -76,6 +226,8 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       "Reframes the grind as a delicious game with stakes, twists, and a rival to beat. Thrives on improvisation and a little theatrical pressure.",
     greenFlag: "Makes deep work weirdly fun and a bit dangerous.",
     redFlag: "Might gamify your taxes for the drama.",
+    cluster: "chaos-partner",
+    profile: { SE: "presence", EX: "flow", TM: "intuitive", ER: "accountability", SI: "narrative" },
   },
   villanelle: {
     id: "villanelle",
@@ -91,6 +243,8 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       "Hates the dull part as much as you do — so she makes it stylish, fast, and over with. Sprints of bold, in-the-moment energy. Zero patience for busywork.",
     greenFlag: "Kills procrastination on sight.",
     redFlag: "Will judge your shoes mid-task.",
+    cluster: "chaos-partner",
+    profile: { SE: "presence", EX: "flow", TM: "intuitive", ER: "self", SI: "ignore" },
   },
   snape: {
     id: "snape",
@@ -106,6 +260,8 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       "Demands standards, follows the recipe to the letter, and dispenses dry, withering accountability until the work is correct. Quietly, ruthlessly devoted to your success.",
     greenFlag: "Catches the mistake you'd have shipped.",
     redFlag: "The silence after a typo is deafening.",
+    cluster: "high-pressure",
+    profile: { SE: "solitude", EX: "checklist", TM: "structured", ER: "accountability", SI: "ignore" },
   },
   olivia: {
     id: "olivia",
@@ -121,6 +277,8 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       "Methodical, warm, and unshakeable under pressure. Breaks the impossible into a clear sequence and keeps you grounded when it gets weird.",
     greenFlag: "The calmest voice in your most chaotic deadline.",
     redFlag: "Suspiciously good at noticing you're avoiding the hard task.",
+    cluster: "soft-accountability",
+    profile: { SE: "presence", EX: "checklist", TM: "structured", ER: "supported", SI: "narrative" },
   },
   zhenhuan: {
     id: "zhenhuan",
@@ -136,6 +294,8 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       "Graceful, composed, endlessly strategic. Sequences your moves so the hardest part lands at exactly the right moment. Never rushed, never beaten.",
     greenFlag: "Turns a messy project into elegant, winning strategy.",
     redFlag: "Three moves ahead of your excuses.",
+    cluster: "strategist",
+    profile: { SE: "presence", EX: "checklist", TM: "structured", ER: "self", SI: "narrative" },
   },
   iggy: {
     id: "iggy",
@@ -151,60 +311,17 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
       "No overthinking. Smells the one thing that matters, locks on, and stubbornly refuses to quit until it's done. Runs on instinct and spite.",
     greenFlag: "Gets the impossible thing done by sheer refusal to stop.",
     redFlag: "Will absolutely ignore your beautiful Gantt chart.",
+    cluster: "narrative-driver",
+    profile: { SE: "solitude", EX: "flow", TM: "intuitive", ER: "self", SI: "narrative" },
   },
 };
 
-export interface TypeMeta {
-  nickname: string; // classic MBTI flavor title
-  blurb: string; // one-line work-style read
+export const ALL_COMPANIONS = Object.keys(COMPANIONS) as CompanionId[];
+
+export function isCompanionId(value: string): value is CompanionId {
+  return Object.prototype.hasOwnProperty.call(COMPANIONS, value);
 }
 
-// All 16 types -> flavor copy used on the result card.
-export const TYPE_META: Record<MbtiType, TypeMeta> = {
-  INTJ: { nickname: "The Architect", blurb: "Strategy first. You build the whole plan in your head before you move." },
-  ENTJ: { nickname: "The Commander", blurb: "You take charge, set the pace, and drag the deadline to its knees." },
-  ENTP: { nickname: "The Debater", blurb: "You hack the task into a game and win on improvisation." },
-  ESTP: { nickname: "The Daredevil", blurb: "You thrive at the last possible second, full throttle." },
-  INTP: { nickname: "The Logician", blurb: "You need the idea to make sense before the work makes progress." },
-  INFJ: { nickname: "The Advocate", blurb: "You finish things that mean something — purpose is your fuel." },
-  ESFP: { nickname: "The Entertainer", blurb: "You make the grind fun and sprint through the boring bits." },
-  ISFP: { nickname: "The Adventurer", blurb: "Quiet, stylish, in-the-moment — you do it your own way." },
-  ISTJ: { nickname: "The Logistician", blurb: "Checklist, order, follow-through. The recipe gets followed." },
-  ISTP: { nickname: "The Virtuoso", blurb: "You learn by doing and fix it with cool, hands-on precision." },
-  ISFJ: { nickname: "The Defender", blurb: "Steady, reliable, quietly relentless until it's truly done." },
-  ESTJ: { nickname: "The Executive", blurb: "You organize the chaos and hold everyone (yourself first) to it." },
-  ENFJ: { nickname: "The Protagonist", blurb: "You read the room and rally momentum toward the finish." },
-  ESFJ: { nickname: "The Consul", blurb: "You keep the wheels turning and the team (or just you) on track." },
-  ENFP: { nickname: "The Campaigner", blurb: "Big-hearted bursts of inspiration, fueled by what excites you." },
-  INFP: { nickname: "The Mediator", blurb: "You finish what you believe in — instinct and meaning lead." },
-};
-
-// The 16 -> 8 mapping. Each companion owns exactly two types.
-export const MBTI_TO_COMPANION: Record<MbtiType, CompanionId> = {
-  INTJ: "heisenberg",
-  ENTJ: "heisenberg",
-  ENTP: "moriarty",
-  ESTP: "moriarty",
-  INTP: "oppenheimer",
-  INFJ: "oppenheimer",
-  ESFP: "villanelle",
-  ISFP: "villanelle",
-  ISTJ: "snape",
-  ISTP: "snape",
-  ISFJ: "olivia",
-  ESTJ: "olivia",
-  ENFJ: "zhenhuan",
-  ESFJ: "zhenhuan",
-  ENFP: "iggy",
-  INFP: "iggy",
-};
-
-export const ALL_TYPES = Object.keys(MBTI_TO_COMPANION) as MbtiType[];
-
-export function isMbtiType(value: string): value is MbtiType {
-  return Object.prototype.hasOwnProperty.call(MBTI_TO_COMPANION, value);
-}
-
-export function companionForType(type: MbtiType): Companion {
-  return COMPANIONS[MBTI_TO_COMPANION[type]];
+export function clusterForCompanion(id: CompanionId): ClusterMeta {
+  return CLUSTERS[COMPANIONS[id].cluster];
 }

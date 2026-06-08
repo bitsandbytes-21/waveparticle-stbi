@@ -59,7 +59,8 @@ export function getStore(): CounterStore {
 // Key builders — keep stable; renaming breaks historical counts.
 export const keys = {
   total: () => "total",
-  type: (type: string) => `type:${type}`,
+  cluster: (id: string) => `cluster:${id}`,
+  mode: (id: string) => `mode:${id}`,
   companion: (id: string) => `companion:${id}`,
   poll: (pollId: string, optionId: string) => `poll:${pollId}:${optionId}`,
 };

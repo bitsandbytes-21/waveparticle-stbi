@@ -1,110 +1,187 @@
 import { describe, it, expect } from "vitest";
-import { QUESTIONS, type Letter } from "@/data/questions";
+import { QUESTIONS, TOTAL_QUESTIONS } from "@/data/questions";
 import {
-  ALL_TYPES,
+  ALL_COMPANIONS,
   COMPANIONS,
-  MBTI_TO_COMPANION,
-  companionForType,
-  type Axis,
-  type CompanionId,
+  CLUSTERS,
+  INTERACTION_MODES,
+  AXIS_POLES,
+  BINARY_AXES,
+  ER_STATES,
+  clusterForCompanion,
+  isCompanionId,
 } from "@/data/mapping";
-import { score, scoreToType, type Answers } from "@/lib/scoring";
+import {
+  scoreVector,
+  selectCompanion,
+  companionDistance,
+  deriveMode,
+  score,
+  profileToVector,
+  encodeVector,
+  decodeVector,
+  type Answers,
+} from "@/lib/scoring";
 
-// Build a full answer set by forcing every question of an axis to one letter.
-function answersFor(letters: Record<Axis, Letter>): Answers {
-  const a: Answers = {};
-  for (const q of QUESTIONS) a[q.id] = letters[q.axis];
-  return a;
+// Choose the option index on a question whose effects include a given pole.
+function optionIndexForPole(qId: string, pole: string): number {
+  const q = QUESTIONS.find((x) => x.id === qId)!;
+  const idx = q.options.findIndex((o) => o.effects.some((e) => e.pole === pole));
+  if (idx < 0) throw new Error(`no option for ${pole} on ${qId}`);
+  return idx;
 }
 
-describe("scoreToType", () => {
-  it("maps all-left answers (E/S/T/J) to ESTJ -> Olivia", () => {
-    const type = scoreToType(answersFor({ EI: "E", SN: "S", TF: "T", JP: "J" }));
-    expect(type).toBe("ESTJ");
-    expect(companionForType(type).id).toBe("olivia");
+describe("scoreVector", () => {
+  it("maps all-presence SE answers to SE = +1", () => {
+    const a: Answers = {
+      q1: optionIndexForPole("q1", "presence"),
+      q2: optionIndexForPole("q2", "presence"),
+      q3: optionIndexForPole("q3", "presence"),
+    };
+    expect(scoreVector(a).SE).toBe(1);
   });
 
-  it("maps all-right answers (I/N/F/P) to INFP -> Iggy", () => {
-    const type = scoreToType(answersFor({ EI: "I", SN: "N", TF: "F", JP: "P" }));
-    expect(type).toBe("INFP");
-    expect(companionForType(type).id).toBe("iggy");
+  it("maps all-solitude SE answers to SE = -1", () => {
+    const a: Answers = {
+      q1: optionIndexForPole("q1", "solitude"),
+      q2: optionIndexForPole("q2", "solitude"),
+      q3: optionIndexForPole("q3", "solitude"),
+    };
+    expect(scoreVector(a).SE).toBe(-1);
   });
 
-  it("maps I/N/T/J to INTJ -> Heisenberg", () => {
-    const type = scoreToType(answersFor({ EI: "I", SN: "N", TF: "T", JP: "J" }));
-    expect(type).toBe("INTJ");
-    expect(companionForType(type).id).toBe("heisenberg");
+  it("returns a neutral 0 for an axis with no answers", () => {
+    expect(scoreVector({}).SI).toBe(0);
   });
 
-  it("resolves an axis tie toward the left pole (deterministic)", () => {
-    // EI: 1 E vs 1 I (q3 unanswered) -> tie -> E. Other axes decisive.
-    const answers: Answers = { q1: "E", q2: "I", q4: "S", q5: "S", q6: "S",
-      q7: "T", q8: "T", q9: "T", q10: "J", q11: "J", q12: "J" };
-    const type = scoreToType(answers);
-    expect(type[0]).toBe("E");
-    expect(type).toBe("ESTJ");
+  it("picks the ER state with the most votes", () => {
+    const a: Answers = {
+      q7: optionIndexForPole("q7", "supported"),
+      q8: optionIndexForPole("q8", "supported"),
+      q9: optionIndexForPole("q9", "self"),
+    };
+    expect(scoreVector(a).ER).toBe("supported");
   });
 
-  it("is reproducible — same answers, same type", () => {
-    const a = answersFor({ EI: "I", SN: "N", TF: "T", JP: "P" });
-    expect(scoreToType(a)).toBe(scoreToType(a));
+  it("resolves an ER tie by ER_STATES order (self first)", () => {
+    // one self, one accountability, nothing else -> self wins the tie.
+    const a: Answers = {
+      q7: optionIndexForPole("q7", "self"),
+      q8: optionIndexForPole("q8", "accountability"),
+    };
+    expect(scoreVector(a).ER).toBe("self");
+  });
+
+  it("is reproducible — same answers, same vector", () => {
+    const a: Answers = { q1: 0, q4: 0, q7: 1, q15: 1 };
+    expect(scoreVector(a)).toEqual(scoreVector(a));
   });
 });
 
-describe("score (full breakdown)", () => {
-  it("returns matched companion and per-axis counts summing to questions answered", () => {
-    const result = score(answersFor({ EI: "I", SN: "N", TF: "T", JP: "J" }));
-    expect(result.type).toBe("INTJ");
-    expect(result.companion.id).toBe("heisenberg");
-    expect(result.axes).toHaveLength(4);
-    for (const axis of result.axes) {
-      // 3 questions per axis, all answered
-      expect(axis.left.count + axis.right.count).toBe(3);
+describe("selectCompanion (nearest profile)", () => {
+  it("returns each companion exactly when fed its own profile vector", () => {
+    for (const id of ALL_COMPANIONS) {
+      const vector = profileToVector(COMPANIONS[id].profile);
+      expect(selectCompanion(vector).id).toBe(id);
     }
+  });
+
+  it("every companion is reachable — all 8 profiles are unique", () => {
+    const seen = new Set(
+      ALL_COMPANIONS.map((id) => selectCompanion(profileToVector(COMPANIONS[id].profile)).id),
+    );
+    expect(seen.size).toBe(8);
+  });
+
+  it("scores distance 0 against an exactly-matching profile", () => {
+    const c = COMPANIONS.heisenberg;
+    expect(companionDistance(profileToVector(c.profile), c.profile)).toBe(0);
+  });
+
+  it("is deterministic on ties (falls to ALL_COMPANIONS order)", () => {
+    const neutral = scoreVector({}); // all-zero binary, ER defaults to self
+    expect(selectCompanion(neutral).id).toBe(selectCompanion(neutral).id);
   });
 });
 
-describe("16 -> 8 mapping integrity", () => {
-  it("covers all 16 MBTI types", () => {
-    expect(ALL_TYPES).toHaveLength(16);
-    expect(new Set(ALL_TYPES).size).toBe(16);
+describe("deriveMode", () => {
+  it("strong narrative -> story-heavy", () => {
+    expect(deriveMode({ SE: 0, EX: 0, TM: 0, SI: 1, ER: "self" }).id).toBe("story-heavy");
+  });
+  it("strong ignore -> task-heavy", () => {
+    expect(deriveMode({ SE: 0, EX: 0, TM: 0, SI: -1, ER: "self" }).id).toBe("task-heavy");
+  });
+  it("balanced SI -> hybrid", () => {
+    expect(deriveMode({ SE: 0, EX: 0, TM: 0, SI: 0, ER: "self" }).id).toBe("hybrid");
+  });
+});
+
+describe("score (full result)", () => {
+  it("ties cluster to the matched companion and returns a valid mode", () => {
+    const result = score({ q1: 0, q4: 0, q7: 1, q13: 1, q15: 1 });
+    expect(isCompanionId(result.companion.id)).toBe(true);
+    expect(result.cluster.id).toBe(clusterForCompanion(result.companion.id).id);
+    expect(INTERACTION_MODES[result.mode.id]).toBeDefined();
+  });
+});
+
+describe("URL vector codec", () => {
+  it("round-trips a vector through encode/decode", () => {
+    const vector = { SE: 1, EX: -1, TM: 0.5, SI: -0.5, ER: "supported" as const };
+    const encoded = encodeVector(vector);
+    const decoded = decodeVector((k) => encoded[k] ?? null);
+    expect(decoded).toEqual(vector);
   });
 
-  it("assigns every type to a valid companion, exactly two types each", () => {
-    const counts: Record<string, number> = {};
-    for (const type of ALL_TYPES) {
-      const companion = companionForType(type);
-      expect(companion).toBeDefined();
-      expect(companion.avatar).toMatch(/^\/companions\/.+\.webp$/);
-      counts[companion.id] = (counts[companion.id] ?? 0) + 1;
-    }
-    const ids = Object.keys(COMPANIONS) as CompanionId[];
-    expect(ids).toHaveLength(8);
-    for (const id of ids) {
-      expect(counts[id]).toBe(2);
+  it("returns null when params are missing or invalid", () => {
+    expect(decodeVector(() => null)).toBeNull();
+    const bad = { se: "0", ex: "0", tm: "0", si: "0", er: "nope" } as Record<string, string>;
+    expect(decodeVector((k) => bad[k] ?? null)).toBeNull();
+  });
+});
+
+describe("companion + cluster integrity", () => {
+  it("has 8 companions, each with a real avatar, cluster, and profile", () => {
+    expect(ALL_COMPANIONS).toHaveLength(8);
+    for (const id of ALL_COMPANIONS) {
+      const c = COMPANIONS[id];
+      expect(c.avatar).toMatch(/^\/companions\/.+\.webp$/);
+      expect(CLUSTERS[c.cluster]).toBeDefined();
+      expect(ER_STATES).toContain(c.profile.ER);
+      for (const a of BINARY_AXES) {
+        expect([AXIS_POLES[a].pos, AXIS_POLES[a].neg]).toContain(c.profile[a]);
+      }
     }
   });
 
-  it("MBTI_TO_COMPANION only references real companions", () => {
-    for (const id of Object.values(MBTI_TO_COMPANION)) {
-      expect(COMPANIONS[id]).toBeDefined();
-    }
+  it("uses all 5 clusters across the 8 companions", () => {
+    const used = new Set<string>(ALL_COMPANIONS.map((id) => COMPANIONS[id].cluster));
+    expect(used).toEqual(new Set(Object.keys(CLUSTERS)));
   });
 });
 
 describe("question set", () => {
-  it("has 12 questions, 3 per axis, each option pushing the correct axis", () => {
-    expect(QUESTIONS).toHaveLength(12);
-    const perAxis: Record<string, number> = {};
-    const axisLetters: Record<Axis, Letter[]> = {
-      EI: ["E", "I"], SN: ["S", "N"], TF: ["T", "F"], JP: ["J", "P"],
-    };
+  it("has 15 questions with valid, non-empty effects on every option", () => {
+    expect(TOTAL_QUESTIONS).toBe(15);
+    const validPoles = new Set<string>([
+      ...ER_STATES,
+      ...BINARY_AXES.flatMap((a) => [AXIS_POLES[a].pos, AXIS_POLES[a].neg]),
+    ]);
     for (const q of QUESTIONS) {
-      perAxis[q.axis] = (perAxis[q.axis] ?? 0) + 1;
+      expect(q.options.length).toBeGreaterThanOrEqual(2);
       for (const opt of q.options) {
-        expect(axisLetters[q.axis]).toContain(opt.letter);
+        expect(opt.effects.length).toBeGreaterThan(0);
+        for (const eff of opt.effects) expect(validPoles.has(eff.pole)).toBe(true);
       }
     }
-    expect(perAxis).toEqual({ EI: 3, SN: 3, TF: 3, JP: 3 });
+  });
+
+  it("has at least one 3-choice ER question", () => {
+    const threeChoice = QUESTIONS.filter((q) => q.options.length === 3);
+    expect(threeChoice.length).toBeGreaterThanOrEqual(1);
+    for (const q of threeChoice) {
+      const poles = q.options.flatMap((o) => o.effects.map((e) => e.pole));
+      expect(poles).toEqual(expect.arrayContaining([...ER_STATES]));
+    }
   });
 });
