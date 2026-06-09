@@ -18,6 +18,7 @@ import ShareButtons from "@/components/ShareButtons";
 import HotTakePoll from "@/components/HotTakePoll";
 import ResultDetails from "@/components/ResultDetails";
 import Reveal from "@/components/Reveal";
+import AppCtaButton from "@/components/AppCtaButton";
 
 // Pre-render all 8 companion result pages as static HTML — perfect for share crawlers.
 export function generateStaticParams() {
@@ -121,14 +122,7 @@ export default async function ResultPage({ params }: Params) {
           get a timed plan, and let them push you to the finish line. They&apos;ll
           run <strong>{mode.name.toLowerCase()}</strong> mode for the way you work.
         </p>
-        <a
-          className="btn btn-primary btn-lg btn-block"
-          href={ctaUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Start with {buddy.name} →
-        </a>
+        <AppCtaButton href={ctaUrl} buddy={buddy.id} label={`Start with ${buddy.name} →`} />
       </section>
 
       <div className="section-head">

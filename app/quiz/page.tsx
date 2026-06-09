@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { QUESTIONS, TOTAL_QUESTIONS } from "@/data/questions";
 import { score, encodeVector, type Answers } from "@/lib/scoring";
+import { buddyFor } from "@/data/mapping";
+import { getSessionId, track } from "@/lib/analytics";
 
 export default function QuizPage() {
   const router = useRouter();
@@ -19,6 +21,14 @@ export default function QuizPage() {
   function choose(optionIndex: number) {
     const next: Answers = { ...answers, [q.id]: optionIndex };
     setAnswers(next);
+    // Log the selection (anonymous) — captures partial/abandoned runs too.
+    track({
+      sessionId: getSessionId(),
+      type: "answer",
+      questionId: q.id,
+      optionIndex,
+      optionLabel: q.options[optionIndex].label,
+    });
     if (index < TOTAL_QUESTIONS - 1) {
       setIndex(index + 1);
     } else {
@@ -29,6 +39,16 @@ export default function QuizPage() {
   async function finish(final: Answers) {
     setSubmitting(true);
     const { companion, cluster, mode, vector } = score(final);
+    const buddy = buddyFor(companion.id);
+    // Event-level result row (Neon, anonymous) — connects answers -> result.
+    track({
+      sessionId: getSessionId(),
+      type: "result",
+      companion: companion.id,
+      buddy: buddy.id,
+      cluster: cluster.id,
+      mode: mode.id,
+    });
     // Fire-and-forget aggregate counter — never block the reveal on it.
     try {
       await fetch("/api/result", {
