@@ -1,13 +1,13 @@
 import { ImageResponse } from "next/og";
 import {
   ALL_COMPANIONS,
-  COMPANIONS,
+  buddyFor,
   clusterForCompanion,
   isCompanionId,
 } from "@/data/mapping";
 
 export const runtime = "nodejs";
-export const alt = "Your Wave Particle companion result";
+export const alt = "Your Wave Particle study buddy";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -24,11 +24,11 @@ export default async function Image({
   const { companion: raw } = await params;
   const id = raw.toLowerCase();
   const valid = isCompanionId(id);
-  const companion = valid ? COMPANIONS[id] : null;
+  const buddy = valid ? buddyFor(id) : null;
   const cluster = valid ? clusterForCompanion(id) : null;
-  const accent = companion?.accent ?? "#ff735a";
-  const name = companion?.name ?? "Wave Particle";
-  const origin = companion?.origin ?? "AI goal companion";
+  const accent = buddy?.accent ?? "#ff735a";
+  const name = buddy?.name ?? "Wave Particle";
+  const origin = buddy?.origin ?? "AI goal companion";
 
   return new ImageResponse(
     (
@@ -48,12 +48,12 @@ export default async function Image({
         }}
       >
         <div style={{ display: "flex", fontSize: 26, letterSpacing: 6, color: accent }}>
-          WHICH WAVE PARTICLE COMPANION ARE YOU?
+          YOUR WAVE PARTICLE STUDY BUDDY
         </div>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 40, color: accent, fontWeight: 800 }}>
-            {cluster ? `${cluster.emoji} ${cluster.name}` : ""}
+            {cluster ? `${cluster.emoji} ${cluster.name} → paired with` : ""}
           </div>
           <div
             style={{

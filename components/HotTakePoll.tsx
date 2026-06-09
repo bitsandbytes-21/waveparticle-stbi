@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import type { Poll } from "@/data/polls";
 
 type Tallies = Record<string, number>;
@@ -22,13 +23,14 @@ export default function HotTakePoll({ polls }: { polls: Poll[] }) {
 
 function PollCard({ poll }: { poll: Poll }) {
   const [tallies, setTallies] = useState<Tallies | null>(null);
-  const [voted, setVoted] = useState<string | null>(null);
+  const [recorded, setRecorded] = useState<string | null>(null); // the vote saved on the server
+  const [selected, setSelected] = useState<string | null>(null); // the option currently highlighted
+  const [pending, setPending] = useState(false);
   const storageKey = `wp-vote-${poll.id}`;
 
   useEffect(() => {
-    // Read prior vote synchronously (no setState here — that would trip the
-    // set-state-in-effect rule and risk an SSR hydration mismatch); apply it
-    // inside the async callbacks alongside the fetched tallies.
+    // Read any prior vote synchronously, then apply it alongside the fetched
+    // tallies (avoids set-state-in-effect / SSR hydration mismatches).
     let prior: string | null = null;
     try {
       prior = window.localStorage.getItem(storageKey);
@@ -39,41 +41,61 @@ function PollCard({ poll }: { poll: Poll }) {
       .then((r) => r.json())
       .then((d) => {
         setTallies(d.tallies ?? {});
-        if (prior) setVoted(prior);
+        if (prior) {
+          setRecorded(prior);
+          setSelected(prior);
+        }
       })
       .catch(() => {
         setTallies({});
-        if (prior) setVoted(prior);
+        if (prior) {
+          setRecorded(prior);
+          setSelected(prior);
+        }
       });
   }, [poll.id, storageKey]);
 
-  async function vote(optionId: string) {
-    if (voted) return;
-    setVoted(optionId);
+  async function submit() {
+    if (!selected || selected === recorded || pending) return;
+    const previous = recorded;
+    setPending(true);
+
+    // Optimistic: move the count off the previous choice onto the new one.
+    setTallies((t) => {
+      const next = { ...(t ?? {}) };
+      if (previous) next[previous] = Math.max(0, (next[previous] ?? 0) - 1);
+      next[selected] = (next[selected] ?? 0) + 1;
+      return next;
+    });
+    setRecorded(selected);
     try {
-      window.localStorage.setItem(storageKey, optionId);
+      window.localStorage.setItem(storageKey, selected);
     } catch {
       /* storage blocked */
     }
-    // optimistic bump
-    setTallies((t) => ({ ...(t ?? {}), [optionId]: (t?.[optionId] ?? 0) + 1 }));
+
     try {
       const r = await fetch("/api/vote", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ pollId: poll.id, optionId }),
+        body: JSON.stringify({
+          pollId: poll.id,
+          optionId: selected,
+          previousOptionId: previous ?? undefined,
+        }),
       });
       const d = await r.json();
       if (d.tallies) setTallies(d.tallies);
     } catch {
-      /* keep optimistic value */
+      /* keep the optimistic value */
+    } finally {
+      setPending(false);
     }
   }
 
-  const showResults = voted !== null;
-  const total = tallies
-    ? Object.values(tallies).reduce((a, b) => a + b, 0)
-    : 0;
+  const showResults = recorded !== null;
+  const total = tallies ? Object.values(tallies).reduce((a, b) => a + b, 0) : 0;
+  const canSubmit = !!selected && selected !== recorded && !pending;
 
   return (
     <div className="poll">
@@ -83,23 +105,52 @@ function PollCard({ poll }: { poll: Poll }) {
         {poll.options.map((opt) => {
           const count = tallies?.[opt.id] ?? 0;
           const percent = pct(count, total);
+          const isSelected = selected === opt.id;
+          const isRecorded = recorded === opt.id;
           return (
-            <button
+            <motion.button
               key={opt.id}
-              className={`poll-option ${voted === opt.id ? "picked" : ""}`}
-              onClick={() => vote(opt.id)}
-              disabled={showResults}
+              type="button"
+              className={`poll-option ${isSelected ? "picked" : ""} ${isRecorded ? "voted" : ""}`}
+              onClick={() => setSelected(opt.id)}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              aria-pressed={isSelected}
             >
               {showResults && (
-                <span className="pct" style={{ width: `${percent}%` }} />
+                <motion.span
+                  className="pct"
+                  initial={false}
+                  animate={{ width: `${percent}%` }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                />
               )}
               <span className="label">
                 {opt.emoji} {opt.label}
               </span>
               {showResults && <span className="num">{percent}%</span>}
-            </button>
+            </motion.button>
           );
         })}
+      </div>
+
+      <div className="poll-foot">
+        <span className="poll-hint">
+          {recorded
+            ? "✓ vote counted — change it anytime"
+            : selected
+              ? "ready when you are"
+              : "tap to choose"}
+        </span>
+        <motion.button
+          type="button"
+          className="poll-submit"
+          onClick={submit}
+          disabled={!canSubmit}
+          whileTap={canSubmit ? { scale: 0.95 } : undefined}
+        >
+          {pending ? "Saving…" : recorded ? "Update vote" : "Submit vote"}
+        </motion.button>
       </div>
     </div>
   );

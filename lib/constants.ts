@@ -8,6 +8,7 @@ export const APP_URL = "https://waveparticle.app";
 // ignore the params today and consume them when ready.
 export function appUrlFor(result: {
   companion: string;
+  buddy: string;
   cluster: string;
   mode: string;
 }): string {
@@ -17,6 +18,7 @@ export function appUrlFor(result: {
   url.searchParams.set("utm_campaign", "which-companion");
   url.searchParams.set("ref", "companion-quiz");
   url.searchParams.set("companion", result.companion);
+  url.searchParams.set("buddy", result.buddy);
   url.searchParams.set("cluster", result.cluster);
   url.searchParams.set("mode", result.mode);
   return url.toString();

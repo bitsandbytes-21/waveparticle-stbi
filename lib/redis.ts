@@ -5,6 +5,7 @@ import { Redis } from "@upstash/redis";
 // works locally with zero setup. No PII is ever stored — only integer counters.
 export interface CounterStore {
   incr(key: string): Promise<number>;
+  decr(key: string): Promise<number>;
   mget(keys: string[]): Promise<number[]>;
 }
 
@@ -14,6 +15,15 @@ class UpstashStore implements CounterStore {
   constructor(private redis: Redis) {}
   async incr(key: string): Promise<number> {
     return this.redis.incr(KEY_PREFIX + key);
+  }
+  async decr(key: string): Promise<number> {
+    // Floor at 0 so a tally can never go negative under a race / stray decrement.
+    const next = await this.redis.decr(KEY_PREFIX + key);
+    if (next < 0) {
+      await this.redis.set(KEY_PREFIX + key, 0);
+      return 0;
+    }
+    return next;
   }
   async mget(keys: string[]): Promise<number[]> {
     if (keys.length === 0) return [];
@@ -28,6 +38,11 @@ class MemoryStore implements CounterStore {
   private map = new Map<string, number>();
   async incr(key: string): Promise<number> {
     const next = (this.map.get(key) ?? 0) + 1;
+    this.map.set(key, next);
+    return next;
+  }
+  async decr(key: string): Promise<number> {
+    const next = Math.max(0, (this.map.get(key) ?? 0) - 1);
     this.map.set(key, next);
     return next;
   }

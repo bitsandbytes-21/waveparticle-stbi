@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import {
   ALL_COMPANIONS,
   COMPANIONS,
+  buddyFor,
   clusterForCompanion,
   isCompanionId,
 } from "@/data/mapping";
@@ -16,6 +17,7 @@ import { deriveMode, profileToVector } from "@/lib/scoring";
 import ShareButtons from "@/components/ShareButtons";
 import HotTakePoll from "@/components/HotTakePoll";
 import ResultDetails from "@/components/ResultDetails";
+import Reveal from "@/components/Reveal";
 
 // Pre-render all 8 companion result pages as static HTML — perfect for share crawlers.
 export function generateStaticParams() {
@@ -28,10 +30,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { companion: raw } = await params;
   const id = raw.toLowerCase();
   if (!isCompanionId(id)) return { title: "Unknown companion" };
-  const companion = COMPANIONS[id];
   const cluster = clusterForCompanion(id);
-  const title = `${companion.name} — ${cluster.name}`;
-  const description = `I'm ${cluster.name} ${cluster.emoji}. My Wave Particle work companion is ${companion.name}: "${companion.quote}" Which fictional menace finishes YOUR to-do list?`;
+  const buddy = buddyFor(id);
+  const title = `${buddy.name} — your study buddy`;
+  const description = `I'm ${cluster.name} ${cluster.emoji}, so Wave Particle paired me with ${buddy.name}: "${buddy.quote}" Which fictional menace would finish YOUR to-do list?`;
   return {
     title,
     description,
@@ -45,56 +47,65 @@ export default async function ResultPage({ params }: Params) {
   const id = raw.toLowerCase();
   if (!isCompanionId(id)) notFound();
 
-  const companion = COMPANIONS[id];
+  const companion = COMPANIONS[id]; // who you are — drives the archetype + the app handoff, not shown as a profile
   const cluster = clusterForCompanion(id);
-  const polls = pollsForCompanion(id);
-  const accentStyle = { "--accent": companion.accent } as CSSProperties;
+  const buddy = buddyFor(id); // your study buddy — the complement who patches your weak loop (the featured character)
+  const polls = pollsForCompanion(buddy.id); // Hot Takes are about your study buddy
+  const accentStyle = { "--accent": buddy.accent } as CSSProperties;
 
-  // Companion-canonical mode for the always-static CTA (a taker's exact mode also
-  // shows in ResultDetails). Drives the personalized, attributable app handoff.
+  // Mode still derives from your own profile. The app handoff carries both who you
+  // are (companion) and who you're paired with (buddy), even though only the buddy
+  // is shown on the page.
   const mode = deriveMode(profileToVector(companion.profile));
-  const ctaUrl = appUrlFor({ companion: id, cluster: companion.cluster, mode: mode.id });
+  const ctaUrl = appUrlFor({ companion: id, buddy: buddy.id, cluster: companion.cluster, mode: mode.id });
 
-  const shareText = `I'm ${cluster.name} ${cluster.emoji} — matched with ${companion.name} ${companion.emoji} in Wave Particle. Which fictional menace finishes YOUR to-do list?`;
+  const shareText = `My Wave Particle study buddy is ${buddy.name} ${buddy.emoji} — paired to patch my weak spots. Which fictional menace would finish YOUR to-do list?`;
 
   return (
     <main className="wrap" style={accentStyle}>
       <article className="result-card">
-        <p className="kicker center">your work-style archetype</p>
+        <p className="kicker center">your study buddy</p>
         <div className="center">
           <div className="cluster-emoji">{cluster.emoji}</div>
-          <h1 className="type-nick">{cluster.name}</h1>
-          <p className="type-blurb">{cluster.blurb}</p>
+          <p className="type-blurb">
+            Your work style is <strong>{cluster.name}</strong>. {cluster.blurb} So we&apos;d
+            pair you with the companion who patches your weak loop:
+          </p>
         </div>
 
-        <p className="match-label center">— your companion is —</p>
-
-        <div className="companion-avatar">
-          <img src={companion.avatar} alt={companion.name} />
-        </div>
-
-        <div className="center">
-          <div className="companion-name">{companion.name}</div>
-          <div className="companion-origin">{companion.origin}</div>
-        </div>
-
-        <blockquote className="companion-quote">“{companion.quote}”</blockquote>
-
-        <p className="workstyle">
-          <span className="tag mono">how they get you to finish: </span>
-          {companion.workStyle}
-        </p>
-
-        <div className="flag-grid">
-          <div className="flag">
-            <span className="tag">green flag ✅</span>
-            {companion.greenFlag}
+        <Reveal>
+          <div className="companion-avatar">
+            <img src={buddy.avatar} alt={buddy.name} />
           </div>
-          <div className="flag">
-            <span className="tag">the catch 😅</span>
-            {companion.redFlag}
+
+          <div className="center">
+            <div className="companion-name">{buddy.name}</div>
+            <div className="companion-origin">{buddy.origin}</div>
           </div>
-        </div>
+
+          <blockquote className="companion-quote">“{buddy.quote}”</blockquote>
+
+          <p className="workstyle">
+            <span className="tag mono">why them: </span>
+            {companion.pairingPitch}
+          </p>
+
+          <p className="workstyle">
+            <span className="tag mono">how they get you to finish: </span>
+            {buddy.workStyle}
+          </p>
+
+          <div className="flag-grid">
+            <div className="flag">
+              <span className="tag">green flag ✅</span>
+              {buddy.greenFlag}
+            </div>
+            <div className="flag">
+              <span className="tag">the catch 😅</span>
+              {buddy.redFlag}
+            </div>
+          </div>
+        </Reveal>
 
         <Suspense fallback={<div className="spin" />}>
           <ResultDetails companionId={id} />
@@ -104,9 +115,9 @@ export default async function ResultPage({ params }: Params) {
       </article>
 
       <section className="cta-app">
-        <h3>Now go finish something with {companion.name}.</h3>
+        <h3>Now go finish something with {buddy.name}.</h3>
         <p>
-          {companion.name} is a real companion inside Wave Particle — set a goal,
+          {buddy.name} is a real companion inside Wave Particle — set a goal,
           get a timed plan, and let them push you to the finish line. They&apos;ll
           run <strong>{mode.name.toLowerCase()}</strong> mode for the way you work.
         </p>
@@ -116,19 +127,20 @@ export default async function ResultPage({ params }: Params) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Start with {companion.name} →
+          Start with {buddy.name} →
         </a>
       </section>
 
       <div className="section-head">
         <h2>🔥 Hot Takes</h2>
-        <p>Settle the debate (and tell us how the stories should go).</p>
+        <p>Settle the debate about {buddy.name} — and tell us how the story should go.</p>
       </div>
       <HotTakePoll polls={polls} />
 
       <p className="foot-note">
-        <Link href="/quiz">↺ Retake the test</Link> · Fan-made &amp; not affiliated
-        with the original rights holders.
+        <Link href="/quiz">↺ Retake the test</Link> ·{" "}
+        <Link href="/characters">Meet the whole cast</Link> · Fan-made &amp; not
+        affiliated with the original rights holders.
       </p>
     </main>
   );

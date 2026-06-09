@@ -3,22 +3,64 @@
 /* eslint-disable @next/next/no-img-element */
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   ALL_COMPANIONS,
   COMPANIONS,
-  AXIS_POLES,
-  AXIS_META,
   BINARY_AXES,
   ER_STATES,
   ER_LABEL,
   ER_SUPPORT,
+  companionForBuddy,
+  type BinaryAxisId,
   type CompanionId,
+  type ErState,
 } from "@/data/mapping";
 import { decodeVector, deriveMode, profileToVector } from "@/lib/scoring";
+
+// Plain-language, meme-y framing for each work-style axis. The data model keeps
+// the dry names (Social Energy, etc.); this is purely how we present them so a
+// first-time taker instantly gets what each meter means.
+const AXIS_FUN: Record<
+  BinaryAxisId,
+  {
+    title: string;
+    left: { emoji: string; label: string };
+    right: { emoji: string; label: string };
+  }
+> = {
+  SE: {
+    title: "Where you lock in",
+    left: { emoji: "🤫", label: "Lone wolf" },
+    right: { emoji: "🎧", label: "Crowd energy" },
+  },
+  EX: {
+    title: "How you get it done",
+    left: { emoji: "🌊", label: "Go with the flow" },
+    right: { emoji: "✅", label: "Checklist gremlin" },
+  },
+  TM: {
+    title: "How your brain solves it",
+    left: { emoji: "🔮", label: "Gut & vibes" },
+    right: { emoji: "📐", label: "Logic & systems" },
+  },
+  SI: {
+    title: "Story or speedrun?",
+    left: { emoji: "⚡", label: "Just the task" },
+    right: { emoji: "📖", label: "Here for the story" },
+  },
+};
+
+const ER_FUN: Record<ErState, { emoji: string; label: string }> = {
+  self: { emoji: "🔥", label: "My own fire" },
+  accountability: { emoji: "⏰", label: "Deadlines & check-ins" },
+  supported: { emoji: "🫂", label: "Hype me up" },
+};
 
 export default function ResultDetails({ companionId }: { companionId: CompanionId }) {
   const searchParams = useSearchParams();
   const companion = COMPANIONS[companionId];
+  const buddyId = companion.buddy; // the featured study buddy — what the grid highlights / picks
 
   // The taker's real vector rides in via query params; cold/shared links fall
   // back to this companion's own profile so the page is always meaningful.
@@ -27,12 +69,14 @@ export default function ResultDetails({ companionId }: { companionId: CompanionI
   const mode = deriveMode(vector);
   const picked = searchParams.get("picked") === "1";
 
-  // Preserve the vector when jumping to another companion via the override grid.
-  function overrideHref(id: CompanionId): string {
+  // Pick a different study buddy: the route is keyed on the matched companion, so
+  // resolve which companion yields the chosen buddy. Preserve the vector params.
+  function pickBuddyHref(buddyChoice: CompanionId): string {
     const params = new URLSearchParams(searchParams.toString());
     params.set("picked", "1");
     const qs = params.toString();
-    return qs ? `/result/${id}?${qs}` : `/result/${id}`;
+    const target = companionForBuddy(buddyChoice);
+    return qs ? `/result/${target}?${qs}` : `/result/${target}`;
   }
 
   return (
@@ -42,33 +86,53 @@ export default function ResultDetails({ companionId }: { companionId: CompanionI
         <span className="badge-note">{mode.blurb}</span>
       </div>
 
-      <div className="axis5-group">
-        {BINARY_AXES.map((axis) => {
+      <div className="stats">
+        <div className="stats-head">
+          <p className="stats-kicker">📊 your work-style stats</p>
+          <p>How you actually operate — the real reason we paired you with {COMPANIONS[buddyId].name}.</p>
+        </div>
+
+        {BINARY_AXES.map((axis, i) => {
           const value = vector[axis];
-          const poles = AXIS_POLES[axis];
           const pct = ((value + 1) / 2) * 100;
+          const fun = AXIS_FUN[axis];
           return (
-            <div className="axis5" key={axis}>
-              <span className="axis5-name">{AXIS_META[axis].name}</span>
-              <div className="axis5-row">
-                <span className={`axis5-pole ${value < 0 ? "win" : ""}`}>{poles.negLabel}</span>
-                <div className="axis5-track">
-                  <span className="axis5-thumb" style={{ left: `${pct}%` }} />
+            <div className="stat" key={axis}>
+              <p className="stat-title">{fun.title}</p>
+              <div className="stat-row">
+                <span className={`stat-pole ${value < 0 ? "win" : ""}`}>
+                  <span className="e">{fun.left.emoji}</span>
+                  {fun.left.label}
+                </span>
+                <div className="stat-track">
+                  <motion.span
+                    className="stat-thumb"
+                    initial={{ left: "50%" }}
+                    whileInView={{ left: `${pct}%` }}
+                    viewport={{ once: true, amount: 0.4 }}
+                    transition={{ type: "spring", stiffness: 120, damping: 18, delay: i * 0.08 }}
+                  />
                 </div>
-                <span className={`axis5-pole right ${value > 0 ? "win" : ""}`}>{poles.posLabel}</span>
+                <span className={`stat-pole ${value > 0 ? "win" : ""}`}>
+                  <span className="e">{fun.right.emoji}</span>
+                  {fun.right.label}
+                </span>
               </div>
             </div>
           );
         })}
 
-        <div className="axis5">
-          <span className="axis5-name">{AXIS_META.ER.name}</span>
+        <div className="stat">
+          <p className="stat-title">What keeps you going</p>
           <div className="er-states">
-            {ER_STATES.map((state) => (
-              <span key={state} className={`er-state ${state === vector.ER ? "win" : ""}`}>
-                {ER_LABEL[state]}
-              </span>
-            ))}
+            {ER_STATES.map((state) => {
+              const f = ER_FUN[state];
+              return (
+                <span key={state} className={`er-state ${state === vector.ER ? "win" : ""}`}>
+                  {f.emoji} {f.label}
+                </span>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -83,16 +147,16 @@ export default function ResultDetails({ companionId }: { companionId: CompanionI
 
       <div className="override">
         <p className="override-head">
-          {picked ? "you picked this one 💁" : "not feeling it? pick your own"}
+          {picked ? "↑ that's your buddy now 💁" : "not your vibe? pick a different study buddy"}
         </p>
         <div className="override-grid">
           {ALL_COMPANIONS.map((id) => {
             const c = COMPANIONS[id];
-            const isCurrent = id === companionId;
+            const isCurrent = id === buddyId;
             return (
               <Link
                 key={id}
-                href={overrideHref(id)}
+                href={pickBuddyHref(id)}
                 className={`override-chip ${isCurrent ? "current" : ""}`}
                 aria-current={isCurrent ? "true" : undefined}
               >

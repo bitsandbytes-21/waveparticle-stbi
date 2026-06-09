@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -71,8 +72,19 @@ export default function QuizPage() {
           exit={{ opacity: 0, x: -36 }}
           transition={{ duration: 0.24, ease: "easeOut" }}
         >
-          <p className="q-meme">{q.meme}</p>
           <h2 className="q-prompt">{q.prompt}</h2>
+
+          <motion.figure
+            className="q-meme-card"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: "easeOut", delay: 0.12 }}
+          >
+            <figcaption className="q-meme-top">{q.memeTop}</figcaption>
+            <img className="q-meme-art" src={q.illustration} alt="" aria-hidden />
+            <figcaption className="q-meme-bottom">{q.memeBottom}</figcaption>
+          </motion.figure>
+
           <div className="options">
             {q.options.map((opt, i) => (
               <button
@@ -99,6 +111,8 @@ export default function QuizPage() {
         </button>
         <span className="linklike">no wrong answers</span>
       </div>
+
+      <p className="doodle-credit">illustrations · Open Doodles (CC0)</p>
     </main>
   );
 }

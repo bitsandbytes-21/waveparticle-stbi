@@ -174,6 +174,8 @@ export interface Companion {
   greenFlag: string; // why working with them rules
   redFlag: string; // the (funny) catch
   cluster: ClusterId; // archetype label shown on the result
+  buddy: CompanionId; // complementary companion who patches this one's weak loop
+  pairingPitch: string; // why that buddy covers your gap (shown on the result)
   profile: CompanionProfile; // 5-axis target for matching
 }
 
@@ -193,6 +195,9 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     greenFlag: "Will not let you half-finish anything. Ever.",
     redFlag: "Mildly terrifying about your color-coded spreadsheet.",
     cluster: "strategist",
+    buddy: "moriarty",
+    pairingPitch:
+      "Your control is airtight — Moriarty keeps it from curdling into burnout by turning the grind into a game worth playing.",
     profile: { SE: "solitude", EX: "checklist", TM: "structured", ER: "self", SI: "ignore" },
   },
   oppenheimer: {
@@ -210,6 +215,9 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     greenFlag: "Makes a boring task feel world-historically important.",
     redFlag: "May spiral about the ethics of your inbox.",
     cluster: "narrative-driver",
+    buddy: "olivia",
+    pairingPitch:
+      "When you spiral into what it all means, Olivia calmly walks you back to the next single step.",
     profile: { SE: "solitude", EX: "flow", TM: "intuitive", ER: "supported", SI: "narrative" },
   },
   moriarty: {
@@ -227,6 +235,9 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     greenFlag: "Makes deep work weirdly fun and a bit dangerous.",
     redFlag: "Might gamify your taxes for the drama.",
     cluster: "chaos-partner",
+    buddy: "snape",
+    pairingPitch:
+      "You'll gamify anything — Snape holds the standards you can't charm your way past.",
     profile: { SE: "presence", EX: "flow", TM: "intuitive", ER: "accountability", SI: "narrative" },
   },
   villanelle: {
@@ -244,6 +255,9 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     greenFlag: "Kills procrastination on sight.",
     redFlag: "Will judge your shoes mid-task.",
     cluster: "chaos-partner",
+    buddy: "zhenhuan",
+    pairingPitch:
+      "You sprint and skip the boring bits — Zhen Huan's patience makes sure the careful moves still happen.",
     profile: { SE: "presence", EX: "flow", TM: "intuitive", ER: "self", SI: "ignore" },
   },
   snape: {
@@ -261,6 +275,9 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     greenFlag: "Catches the mistake you'd have shipped.",
     redFlag: "The silence after a typo is deafening.",
     cluster: "high-pressure",
+    buddy: "oppenheimer",
+    pairingPitch:
+      "Your standards are merciless — Oppenheimer reminds you why the work matters, so it isn't just cold correctness.",
     profile: { SE: "solitude", EX: "checklist", TM: "structured", ER: "accountability", SI: "ignore" },
   },
   olivia: {
@@ -278,6 +295,9 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     greenFlag: "The calmest voice in your most chaotic deadline.",
     redFlag: "Suspiciously good at noticing you're avoiding the hard task.",
     cluster: "soft-accountability",
+    buddy: "villanelle",
+    pairingPitch:
+      "You're calm and methodical — Villanelle brings the urgency that turns 'one more step' into 'done, today.'",
     profile: { SE: "presence", EX: "checklist", TM: "structured", ER: "supported", SI: "narrative" },
   },
   zhenhuan: {
@@ -295,6 +315,9 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     greenFlag: "Turns a messy project into elegant, winning strategy.",
     redFlag: "Three moves ahead of your excuses.",
     cluster: "strategist",
+    buddy: "iggy",
+    pairingPitch:
+      "You play the long game beautifully — Iggy is the nudge that makes you start now instead of waiting for the perfect moment.",
     profile: { SE: "presence", EX: "checklist", TM: "structured", ER: "self", SI: "narrative" },
   },
   iggy: {
@@ -312,6 +335,9 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     greenFlag: "Gets the impossible thing done by sheer refusal to stop.",
     redFlag: "Will absolutely ignore your beautiful Gantt chart.",
     cluster: "narrative-driver",
+    buddy: "heisenberg",
+    pairingPitch:
+      "You run on pure instinct — Heisenberg hands you the exact plan so all that heart actually lands the result.",
     profile: { SE: "solitude", EX: "flow", TM: "intuitive", ER: "self", SI: "narrative" },
   },
 };
@@ -324,4 +350,18 @@ export function isCompanionId(value: string): value is CompanionId {
 
 export function clusterForCompanion(id: CompanionId): ClusterMeta {
   return CLUSTERS[COMPANIONS[id].cluster];
+}
+
+/** The complementary companion paired to patch this one's weak loop (hybrid result). */
+export function buddyFor(id: CompanionId): Companion {
+  return COMPANIONS[COMPANIONS[id].buddy];
+}
+
+/**
+ * Inverse of buddyFor: the matched companion whose study buddy is `buddyId`.
+ * The pairings form a single cycle (no fixed points), so this is always unique.
+ * Lets the result page pick a buddy directly via the matched-companion route.
+ */
+export function companionForBuddy(buddyId: CompanionId): CompanionId {
+  return ALL_COMPANIONS.find((id) => COMPANIONS[id].buddy === buddyId) ?? buddyId;
 }
