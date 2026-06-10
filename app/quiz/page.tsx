@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { QUESTIONS, TOTAL_QUESTIONS } from "@/data/questions";
@@ -18,7 +18,18 @@ export default function QuizPage() {
   const q = QUESTIONS[index];
   const progress = Math.round((index / TOTAL_QUESTIONS) * 100);
 
+  // Guards against double-fired events: the exiting card stays tappable for
+  // ~240ms (AnimatePresence), and its onClick closes over the OLD question —
+  // indexRef always holds the current index, so stale taps are dropped.
+  const indexRef = useRef(index);
+  useEffect(() => {
+    indexRef.current = index;
+  }, [index]);
+  const finishingRef = useRef(false);
+
   function choose(optionIndex: number) {
+    // Drop taps on a card that's animating out, or after the quiz is finishing.
+    if (finishingRef.current || QUESTIONS[indexRef.current].id !== q.id) return;
     const next: Answers = { ...answers, [q.id]: optionIndex };
     setAnswers(next);
     // Log the selection (anonymous) — captures partial/abandoned runs too.
@@ -37,6 +48,8 @@ export default function QuizPage() {
   }
 
   async function finish(final: Answers) {
+    if (finishingRef.current) return; // double-tap on the last option
+    finishingRef.current = true;
     setSubmitting(true);
     const { companion, cluster, mode, vector } = score(final);
     const buddy = buddyFor(companion.id);

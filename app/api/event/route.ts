@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { logEvent, type EventType } from "@/lib/db";
+import { analyticsEnabled, logEvent, type EventType } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -30,6 +30,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid event" }, { status: 400 });
   }
 
+  // Diagnostic: shows up in Vercel logs if the env var didn't reach the runtime.
+  if (!analyticsEnabled()) {
+    console.warn("[api/event] DATABASE_URL is not set at runtime — event dropped. Redeploy after adding the env var.");
+    return NextResponse.json({ ok: false, reason: "analytics-disabled" }, { status: 200 });
+  }
+
   try {
     await logEvent({
       sessionId,
@@ -43,9 +49,11 @@ export async function POST(req: Request) {
       mode: str(d.mode, 40),
       utmSource: str(d.utmSource, 60),
     });
-  } catch {
-    // analytics is best-effort — never surface DB errors to the client
-    return NextResponse.json({ ok: false }, { status: 200 });
+  } catch (err) {
+    // analytics is best-effort — don't surface to the user, but log the real
+    // cause so it's visible in Vercel function logs.
+    console.error("[api/event] insert failed:", err);
+    return NextResponse.json({ ok: false, reason: "insert-failed" }, { status: 200 });
   }
   return NextResponse.json({ ok: true });
 }
