@@ -16,7 +16,7 @@ export default function Landing() {
           Which <span className="pop">fictional menace</span> finishes your to-do list?
         </h1>
 
-        <p className="lead">{SITE_TAGLINE} Take the 15-question test and meet your match.</p>
+        <p className="lead">{SITE_TAGLINE} Take the 15 question test and meet your match.</p>
       </Reveal>
 
       <Reveal delay={0.12}>
@@ -50,8 +50,6 @@ export default function Landing() {
       <p className="disclaimer">
         A fan-made personality quiz that matches your work style to a character from
         Wave Particle — an AI goal companion that helps you actually finish things.
-        Not affiliated with the original shows, films, or rights holders; characters
-        are referenced in good fun.
       </p>
     </main>
   );

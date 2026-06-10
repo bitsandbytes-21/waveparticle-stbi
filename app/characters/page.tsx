@@ -5,7 +5,7 @@ import CharacterGrid from "@/components/CharacterGrid";
 export const metadata: Metadata = {
   title: "Meet the Cast",
   description:
-    "The eight fictional menaces who'll get your to-do list done in Wave Particle — and the study buddy each one pairs with.",
+    "The eight fictional menaces who'll get your to-do list done in Wave Particle and the study buddy each one pairs with.",
 };
 
 export default function CharactersPage() {
@@ -16,7 +16,7 @@ export default function CharactersPage() {
         Meet the <span className="pop">menaces</span>
       </h1>
       <p className="lead">
-        Eight companions. Each finishes your work a different way — and patches a
+        Eight companions. Each finishes your work a different way and patches a
         different weak spot.
       </p>
 
