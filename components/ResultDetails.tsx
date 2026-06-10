@@ -17,6 +17,7 @@ import {
   type ErState,
 } from "@/data/mapping";
 import { decodeVector, deriveMode, profileToVector } from "@/lib/scoring";
+import { getSessionId, track } from "@/lib/analytics";
 
 // Plain-language, meme-y framing for each work-style axis. The data model keeps
 // the dry names (Social Energy, etc.); this is purely how we present them so a
@@ -159,6 +160,8 @@ export default function ResultDetails({ companionId }: { companionId: CompanionI
                 href={pickBuddyHref(id)}
                 className={`override-chip ${isCurrent ? "current" : ""}`}
                 aria-current={isCurrent ? "true" : undefined}
+                // The user's OWN choice — the popularity signal (latest pick wins).
+                onClick={() => track({ sessionId: getSessionId(), type: "buddy_pick", buddy: id })}
               >
                 <img src={c.avatar} alt={c.name} />
                 <span>{c.name}</span>

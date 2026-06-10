@@ -57,7 +57,6 @@ export default function QuizPage() {
     track({
       sessionId: getSessionId(),
       type: "result",
-      companion: companion.id,
       buddy: buddy.id,
       cluster: cluster.id,
       mode: mode.id,

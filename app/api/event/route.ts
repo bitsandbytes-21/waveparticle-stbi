@@ -3,7 +3,7 @@ import { analyticsEnabled, logEvent, type EventType } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-const TYPES: EventType[] = ["answer", "result", "cta_click"];
+const TYPES: EventType[] = ["answer", "result", "buddy_pick", "cta_click"];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function str(v: unknown, max: number): string | undefined {
@@ -43,7 +43,6 @@ export async function POST(req: Request) {
       questionId: str(d.questionId, 20),
       optionIndex: typeof d.optionIndex === "number" ? d.optionIndex : undefined,
       optionLabel: str(d.optionLabel, 200),
-      companion: str(d.companion, 40),
       buddy: str(d.buddy, 40),
       cluster: str(d.cluster, 40),
       mode: str(d.mode, 40),

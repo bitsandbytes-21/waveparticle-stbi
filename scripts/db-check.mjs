@@ -1,6 +1,6 @@
-// Diagnostic: verifies the Neon connection, the quiz_events table, an insert,
-// and a read — printing the REAL error if anything fails (the API route swallows
-// errors on purpose). Run from the repo root:  node scripts/db-check.mjs
+// Diagnostic: verifies the Neon connection, the per-event-type tables, an
+// insert, and a read — printing the REAL error if anything fails (the API route
+// swallows errors on purpose). Run from the repo root:  node scripts/db-check.mjs
 // It reads DATABASE_URL from the environment or from .env.local.
 import { readFileSync } from "node:fs";
 import { neon } from "@neondatabase/serverless";
@@ -37,41 +37,37 @@ try {
   process.exit(1);
 }
 
-const exists = await sql`select to_regclass('public.quiz_events') as t`;
-if (!exists[0].t) {
-  console.error("✗ Table 'quiz_events' does NOT exist. Run the CREATE TABLE SQL in Neon's SQL Editor.");
-  process.exit(1);
+// lib/db.ts writes to these — created by scripts/db-reshape.sql.
+const TABLES = ["quiz_answers", "quiz_results", "quiz_buddy_picks", "quiz_cta_clicks"];
+for (const t of TABLES) {
+  const exists = await sql`select to_regclass(${"public." + t}) as t`;
+  if (!exists[0].t) {
+    console.error(`✗ Table '${t}' does NOT exist. Run scripts/db-reshape.sql in Neon's SQL Editor.`);
+    process.exit(1);
+  }
 }
-console.log("✓ Table 'quiz_events' exists.");
-
-// lib/db.ts upserts with ON CONFLICT against these partial unique indexes —
-// if they're missing, EVERY insert fails. Created by scripts/db-dedupe.sql.
-const want = ["quiz_events_answer_uniq", "quiz_events_result_uniq", "quiz_events_cta_uniq"];
-const have = (await sql`select indexname from pg_indexes where tablename = 'quiz_events'`).map((r) => r.indexname);
-const missing = want.filter((n) => !have.includes(n));
-if (missing.length) {
-  console.error("✗ Missing dedupe indexes:", missing.join(", "));
-  console.error("  Run scripts/db-dedupe.sql in Neon's SQL Editor — inserts FAIL without them.");
-  process.exit(1);
-}
-console.log("✓ Dedupe indexes present.");
+console.log("✓ Tables exist:", TABLES.join(", "));
 
 try {
   const sid = randomUUID();
-  await sql`insert into quiz_events (session_id, type, companion, buddy)
-            values (${sid}, 'result', '__db_check__', '__db_check__')`;
+  await sql`insert into quiz_results (session_id, buddy, cluster, mode)
+            values (${sid}, '__db_check__', '', '')`;
   console.log("✓ Insert succeeded (session", sid + ").");
 } catch (e) {
   console.error("✗ INSERT FAILED:", e.message);
   process.exit(1);
 }
 
-const counts = await sql`select type, count(*)::int as n from quiz_events group by type order by type`;
-console.log("✓ Read succeeded. Row counts by type:", counts);
+const counts = await sql`
+  select 'answers' as what, count(*)::int as n from quiz_answers
+  union all select 'results', count(*)::int from quiz_results
+  union all select 'buddy_picks', count(*)::int from quiz_buddy_picks
+  union all select 'cta_clicks', count(*)::int from quiz_cta_clicks`;
+console.log("✓ Read succeeded. Row counts:", counts);
 
-// Timezone sanity: created_at is timestamptz (stored UTC — correct), but if the
-// database default timezone is UTC, Neon SQL Editor exports show "+00" times.
-// Fix once with scripts/db-timezone.sql.
+// Timezone sanity: timestamps are stored UTC (correct); if the database default
+// timezone is UTC, Neon SQL Editor exports show "+00" times. Fix once with
+// scripts/db-timezone.sql.
 const [{ timezone }] = await sql`show timezone`;
 if (timezone === "America/New_York") {
   console.log("✓ Database timezone is America/New_York — exports show local time.");
@@ -79,9 +75,13 @@ if (timezone === "America/New_York") {
   console.warn(`⚠ Database timezone is '${timezone}' — exports will show that zone, not US Eastern.`);
   console.warn("  Run scripts/db-timezone.sql in Neon's SQL Editor to fix the display.");
 }
-const recent = await sql`
-  select type, coalesce(question_id, companion, '') as what,
-         to_char(created_at at time zone 'America/New_York', 'YYYY-MM-DD HH12:MI:SS AM') as eastern_time
-  from quiz_events order by created_at desc limit 3`;
-console.log("• Latest events (US Eastern):", recent);
-console.log("\nAll good. (Delete the __db_check__ test rows with: delete from quiz_events where companion = '__db_check__';)");
+
+const popularity = await sql`
+  select r.buddy, count(*)::int as matched,
+         (select count(*)::int from quiz_buddy_picks p where p.buddy = r.buddy) as picked
+  from quiz_results r
+  where r.buddy <> '__db_check__'
+  group by r.buddy order by matched desc`;
+console.log("• Buddy popularity (matched by quiz vs picked by user):", popularity);
+
+console.log("\nAll good. (Delete the __db_check__ test rows with: delete from quiz_results where buddy = '__db_check__';)");
